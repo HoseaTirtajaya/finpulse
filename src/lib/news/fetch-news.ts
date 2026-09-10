@@ -1,17 +1,21 @@
 import Parser from "rss-parser";
-import type { NewsCategory, NewsItem } from "@/lib/types";
+import type {
+  MarketFilter,
+  NewsItem,
+  NewsScope,
+} from "@/lib/types";
+import { FINANCE_SOURCES, inferFinanceCategory } from "@/lib/news/sources/finance";
 import {
-  extractTickers,
-  FALLBACK_NEWS,
-  FEED_SOURCES,
-  inferCategory,
-  slugId,
-} from "@/lib/news/sources";
+  GENERAL_SOURCES,
+  inferGeneralCategory,
+} from "@/lib/news/sources/general";
+import { extractTickers, slugId } from "@/lib/news/sources/shared";
+import type { FeedSource } from "@/lib/news/sources/finance";
 
 const parser = new Parser({
   timeout: 8000,
   headers: {
-    "User-Agent": "FinPulse/0.1 (+https://localhost; research aggregator)",
+    "User-Agent": "FinPulse/0.3 (+https://localhost; research aggregator)",
     Accept: "application/rss+xml, application/xml, text/xml, */*",
   },
 });
@@ -19,8 +23,9 @@ const parser = new Parser({
 export type NewsFetchResult = {
   items: NewsItem[];
   liveSources: string[];
-  usedFallback: boolean;
+  failedSources: string[];
   fetchedAt: string;
+  scope: NewsScope;
 };
 
 function stripHtml(input: string): string {
@@ -31,12 +36,10 @@ function stripHtml(input: string): string {
 }
 
 async function fetchFeed(
-  sourceId: string,
-  name: string,
-  url: string,
-  category: Exclude<NewsCategory, "all">,
+  source: FeedSource,
+  scope: "finance" | "general",
 ): Promise<NewsItem[]> {
-  const feed = await parser.parseURL(url);
+  const feed = await parser.parseURL(source.url);
   return (feed.items ?? [])
     .filter((item) => item.title && (item.link || item.guid))
     .slice(0, 18)
@@ -51,45 +54,75 @@ async function fetchFeed(
         : item.pubDate
           ? new Date(item.pubDate).toISOString()
           : new Date().toISOString();
+      const category =
+        scope === "finance"
+          ? inferFinanceCategory(title, summary, source.category)
+          : inferGeneralCategory(title, summary, source.category);
       return {
-        id: slugId(sourceId, title, urlLink),
+        id: slugId(source.id, title, urlLink),
         title,
         summary: summary || "Open the article for full context.",
         url: urlLink,
-        source: name,
+        source: source.name,
         publishedAt,
-        category: inferCategory(title, summary, category),
-        tickers: extractTickers(`${title} ${summary}`),
+        category,
+        tickers: scope === "finance" ? extractTickers(`${title} ${summary}`) : [],
+        scope,
+        language: source.language,
       } satisfies NewsItem;
     });
 }
 
-export async function fetchFinancialNews(options?: {
-  category?: NewsCategory;
+function sourcesForScope(scope: NewsScope): FeedSource[] {
+  if (scope === "general" || scope === "trending") {
+    // Trending clusters across general (+ finance) for broader velocity.
+    if (scope === "trending") return [...GENERAL_SOURCES, ...FINANCE_SOURCES];
+    return GENERAL_SOURCES;
+  }
+  return FINANCE_SOURCES;
+}
+
+export async function fetchNews(options?: {
+  scope?: NewsScope;
+  category?: string;
   q?: string;
   symbol?: string;
+  market?: MarketFilter;
 }): Promise<NewsFetchResult> {
+  const scope = options?.scope ?? "finance";
+  const sources = sourcesForScope(scope);
+  const itemScope: "finance" | "general" =
+    scope === "finance" ? "finance" : "general";
+
+  const financeIds = new Set(FINANCE_SOURCES.map((s) => s.id));
   const settled = await Promise.allSettled(
-    FEED_SOURCES.map((s) => fetchFeed(s.id, s.name, s.url, s.category)),
+    sources.map((s) =>
+      fetchFeed(
+        s,
+        scope === "trending"
+          ? financeIds.has(s.id)
+            ? "finance"
+            : "general"
+          : itemScope,
+      ),
+    ),
   );
 
   const liveSources: string[] = [];
+  const failedSources: string[] = [];
   const liveItems: NewsItem[] = [];
 
   settled.forEach((result, idx) => {
     if (result.status === "fulfilled" && result.value.length > 0) {
-      liveSources.push(FEED_SOURCES[idx].name);
+      liveSources.push(sources[idx].name);
       liveItems.push(...result.value);
+    } else {
+      failedSources.push(sources[idx].name);
     }
   });
 
-  // Always blend the tagged desk corpus so watchlist/recommendation
-  // matching still has instrument-aware headlines when live RSS omits tickers.
-  const usedFallback = liveItems.length < 4;
-  const base = [...liveItems, ...FALLBACK_NEWS];
-
   const deduped = new Map<string, NewsItem>();
-  for (const item of base) {
+  for (const item of liveItems) {
     const key = item.title.toLowerCase().slice(0, 80);
     if (!deduped.has(key)) deduped.set(key, item);
   }
@@ -102,6 +135,16 @@ export async function fetchFinancialNews(options?: {
   const category = options?.category ?? "all";
   if (category !== "all") {
     items = items.filter((i) => i.category === category);
+  }
+
+  const market = options?.market ?? "all";
+  if (scope === "finance" && market !== "all") {
+    const allowed = new Set(
+      sources
+        .filter((s) => s.market === market || s.market === "global")
+        .map((s) => s.name),
+    );
+    items = items.filter((i) => allowed.has(i.source));
   }
 
   const q = options?.q?.trim().toLowerCase();
@@ -121,15 +164,21 @@ export async function fetchFinancialNews(options?: {
     items = items.filter(
       (i) =>
         i.tickers.some((t) => t.toUpperCase() === normalized) ||
-        i.title.toUpperCase().includes(normalized.replace("-USD", "")) ||
-        i.summary.toUpperCase().includes(normalized.replace("-USD", "")),
+        i.title.toUpperCase().includes(normalized.replace("-USD", "").replace("^", "")) ||
+        i.summary
+          .toUpperCase()
+          .includes(normalized.replace("-USD", "").replace("^", "")),
     );
   }
 
   return {
-    items: items.slice(0, 60),
-    liveSources,
-    usedFallback,
+    items: items.slice(0, 80),
+    liveSources: Array.from(new Set(liveSources)),
+    failedSources: Array.from(new Set(failedSources)),
     fetchedAt: new Date().toISOString(),
+    scope,
   };
 }
+
+/** @deprecated use fetchNews — kept for gradual call-site migration */
+export const fetchFinancialNews = fetchNews;

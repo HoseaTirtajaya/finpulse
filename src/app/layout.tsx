@@ -17,9 +17,9 @@ const sans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "FinPulse — Financial news & AI recommendations",
+  title: "FinPulse — Finance, general & trending news",
   description:
-    "Gather financial news, manage a watchlist, and rank ideas with transparent AI-assisted research briefs.",
+    "Multi-scope news desk: US+IDX finance with rankings, general news, and cross-outlet trending clusters with AI briefs.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

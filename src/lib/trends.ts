@@ -1,4 +1,5 @@
 import type { NewsItem, TrendSignal } from "@/lib/types";
+import { countTone } from "@/lib/sentiment";
 
 const THEMES: { label: string; pattern: RegExp; tickers: string[] }[] = [
   {
@@ -8,7 +9,7 @@ const THEMES: { label: string; pattern: RegExp; tickers: string[] }[] = [
   },
   {
     label: "Fed & Rates",
-    pattern: /\b(fed|rate.?cut|treasury|yield|cpi|inflation)\b/i,
+    pattern: /\b(fed|rate.?cut|treasury|yield|cpi|inflation|suku bunga)\b/i,
     tickers: ["SPY", "GLD", "QQQ"],
   },
   {
@@ -18,18 +19,23 @@ const THEMES: { label: string; pattern: RegExp; tickers: string[] }[] = [
   },
   {
     label: "Crypto Liquidity",
-    pattern: /\b(bitcoin|crypto|etf flow|btc|ethereum)\b/i,
+    pattern: /\b(bitcoin|crypto|etf flow|btc|ethereum|kripto)\b/i,
     tickers: ["BTC-USD"],
   },
   {
     label: "Energy & Commodities",
-    pattern: /\b(oil|crude|opec|gold|commodity)\b/i,
-    tickers: ["XOM", "GLD"],
+    pattern: /\b(oil|crude|opec|gold|commodity|nikel|batu bara)\b/i,
+    tickers: ["XOM", "GLD", "ANTM"],
   },
   {
     label: "Banks & Credit",
-    pattern: /\b(bank|jpmorgan|credit|loan|ipo|m&a)\b/i,
-    tickers: ["JPM"],
+    pattern: /\b(bank|jpmorgan|credit|loan|ipo|bca|bri|mandiri)\b/i,
+    tickers: ["JPM", "BBCA", "BBRI", "BMRI"],
+  },
+  {
+    label: "IDX / Rupiah",
+    pattern: /\b(ihsg|idx|rupiah|jakarta|bursa)\b/i,
+    tickers: ["^JKSE", "USDIDR"],
   },
   {
     label: "Volatility / Risk",
@@ -38,9 +44,6 @@ const THEMES: { label: string; pattern: RegExp; tickers: string[] }[] = [
   },
 ];
 
-const POSITIVE = /\b(rally|surge|gain|beat|hope|strong|rebound|bid|firm)\b/i;
-const NEGATIVE = /\b(fall|drop|cut|slow|weak|risk|warn|soft|pressure|loss)\b/i;
-
 export function buildTrendSignals(items: NewsItem[]): TrendSignal[] {
   return THEMES.map((theme) => {
     const matches = items.filter((i) =>
@@ -48,9 +51,8 @@ export function buildTrendSignals(items: NewsItem[]): TrendSignal[] {
     );
     let tone = 0;
     for (const m of matches) {
-      const text = `${m.title} ${m.summary}`;
-      if (POSITIVE.test(text)) tone += 1;
-      if (NEGATIVE.test(text)) tone -= 1;
+      const t = countTone(`${m.title} ${m.summary}`, m.language);
+      tone += t.positive - t.negative;
     }
     const score = matches.length
       ? Math.max(-100, Math.min(100, Math.round((tone / matches.length) * 100)))
@@ -66,5 +68,9 @@ export function buildTrendSignals(items: NewsItem[]): TrendSignal[] {
     };
   })
     .filter((t) => t.mentionCount > 0)
-    .sort((a, b) => b.mentionCount - a.mentionCount || Math.abs(b.score) - Math.abs(a.score));
+    .sort(
+      (a, b) =>
+        b.mentionCount - a.mentionCount ||
+        Math.abs(b.score) - Math.abs(a.score),
+    );
 }

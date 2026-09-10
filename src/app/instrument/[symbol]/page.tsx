@@ -4,9 +4,13 @@ import { AiBriefPanel } from "@/components/ai-brief-panel";
 import { NewsCard } from "@/components/news-card";
 import { WatchlistToggle } from "@/components/watchlist-toggle";
 import { generateBrief } from "@/lib/ai/analyze";
-import { getInstrument, INSTRUMENTS } from "@/lib/instruments";
-import { fetchFinancialNews } from "@/lib/news/fetch-news";
-import { fetchQuotes } from "@/lib/quotes/fetch-quotes";
+import {
+  formatChangePct,
+  formatPrice,
+  getInstrument,
+  INSTRUMENTS,
+} from "@/lib/instruments";
+import { getCachedNews, getCachedQuotes } from "@/lib/cache";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -26,23 +30,18 @@ export default async function InstrumentPage({ params }: PageProps) {
   if (!instrument) notFound();
 
   const [news, quotes] = await Promise.all([
-    fetchFinancialNews({ symbol: instrument.symbol }),
-    fetchQuotes([instrument.symbol]),
+    getCachedNews({ scope: "finance", symbol: instrument.symbol }),
+    getCachedQuotes(instrument.symbol),
   ]);
   const quote = quotes[0];
-  const brief = await generateBrief(news.items, instrument.symbol);
-  const price = quote?.price ?? instrument.lastPrice;
-  const changePct = quote?.changePct ?? instrument.changePct;
-  const quoteSource = quote?.source ?? "demo";
-  const up = changePct >= 0;
+  const brief = await generateBrief(news.items, instrument.symbol, "finance");
+  const changePct = quote?.changePct ?? null;
+  const up = changePct != null ? changePct >= 0 : true;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 md:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link
-          href="/"
-          className="text-sm text-[var(--fp-accent)] hover:underline"
-        >
+        <Link href="/" className="text-sm text-[var(--fp-accent)] hover:underline">
           ← Back to feed
         </Link>
         <div className="flex gap-2">
@@ -60,7 +59,7 @@ export default async function InstrumentPage({ params }: PageProps) {
         <div className="hero-grid pointer-events-none absolute inset-0 opacity-40" />
         <div className="relative px-5 py-8 md:px-8 md:py-10">
           <p className="text-xs font-semibold tracking-[0.2em] text-[var(--fp-accent)] uppercase">
-            {instrument.type} · {instrument.sector}
+            {instrument.market} · {instrument.type} · {instrument.sector}
           </p>
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -73,20 +72,20 @@ export default async function InstrumentPage({ params }: PageProps) {
             </div>
             <div className="text-right">
               <p className="font-mono text-3xl text-[var(--fp-ink)]">
-                {instrument.type === "fx"
-                  ? price.toFixed(4)
-                  : price.toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
+                {formatPrice(quote?.price, instrument.currency, instrument.type)}
               </p>
               <p
                 className={cn(
                   "font-mono text-sm",
-                  up ? "text-[var(--fp-up)]" : "text-[var(--fp-down)]",
+                  changePct == null
+                    ? "text-[var(--fp-muted)]"
+                    : up
+                      ? "text-[var(--fp-up)]"
+                      : "text-[var(--fp-down)]",
                 )}
               >
-                {up ? "+" : ""}
-                {changePct.toFixed(2)}% · {quoteSource} quote
+                {formatChangePct(changePct)}
+                {quote ? " · live quote" : " · quote unavailable"}
               </p>
             </div>
           </div>
@@ -107,7 +106,11 @@ export default async function InstrumentPage({ params }: PageProps) {
       </section>
 
       <div className="mt-8 space-y-8">
-        <AiBriefPanel symbol={instrument.symbol} initialBrief={brief} />
+        <AiBriefPanel
+          symbol={instrument.symbol}
+          scope="finance"
+          initialBrief={brief}
+        />
 
         <section>
           <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--fp-ink)]">

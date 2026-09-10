@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { AiBrief } from "@/lib/types";
+import type { AiBrief, NewsScope } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const stanceClass: Record<AiBrief["stance"], string> = {
@@ -15,9 +15,11 @@ const stanceClass: Record<AiBrief["stance"], string> = {
 
 export function AiBriefPanel({
   symbol,
+  scope = "finance",
   initialBrief,
 }: {
   symbol?: string;
+  scope?: NewsScope;
   initialBrief?: AiBrief | null;
 }) {
   const [brief, setBrief] = useState<AiBrief | null>(initialBrief ?? null);
@@ -31,7 +33,7 @@ export function AiBriefPanel({
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol }),
+        body: JSON.stringify({ symbol, scope }),
       });
       if (!res.ok) throw new Error("Brief failed");
       const data = (await res.json()) as { brief: AiBrief };
@@ -43,6 +45,15 @@ export function AiBriefPanel({
     }
   }
 
+  const title =
+    symbol
+      ? `${symbol} desk take`
+      : scope === "trending"
+        ? "What’s moving"
+        : scope === "general"
+          ? "General desk take"
+          : "What the tape is saying";
+
   return (
     <section className="rounded-xl border border-[var(--fp-line)] bg-white/55 p-5 backdrop-blur-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -51,12 +62,11 @@ export function AiBriefPanel({
             AI research brief
           </p>
           <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--fp-ink)]">
-            {symbol ? `${symbol} desk take` : "What the tape is saying"}
+            {title}
           </h2>
           <p className="mt-1 max-w-md text-sm text-[var(--fp-muted)]">
             Summarizes current headlines into stance, risks, and what to watch.
-            Uses a built-in desk heuristic; optional LLM mode available when
-            configured.
+            Uses a built-in heuristic; optional Gemini/OpenAI when configured.
           </p>
         </div>
         <button
@@ -78,8 +88,8 @@ export function AiBriefPanel({
 
       {!brief && !loading && !error && (
         <p className="mt-6 text-sm text-[var(--fp-muted)]">
-          No brief yet. Generate one to see a structured AI-style read of the
-          latest coverage.
+          No brief yet. Generate one to see a structured read of the latest
+          coverage.
         </p>
       )}
 
@@ -98,7 +108,7 @@ export function AiBriefPanel({
               {brief.stance}
             </Badge>
             <Badge variant="outline" className="rounded-sm capitalize">
-              {brief.model === "llm" ? "LLM" : "Heuristic"} model
+              {brief.model} model
             </Badge>
           </div>
           <h3 className="font-[family-name:var(--font-display)] text-xl text-[var(--fp-ink)]">
@@ -112,6 +122,20 @@ export function AiBriefPanel({
             <BriefList title="Risks" items={brief.risks} />
             <BriefList title="What to watch" items={brief.whatToWatch} />
           </div>
+          {brief.citedHeadlines?.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold tracking-wider text-[var(--fp-muted)] uppercase">
+                Cited headlines
+              </h4>
+              <ul className="mt-2 space-y-1 text-sm text-[var(--fp-muted)]">
+                {brief.citedHeadlines.slice(0, 6).map((h) => (
+                  <li key={h} className="truncate">
+                    · {h}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="border-t border-[var(--fp-line)] pt-4 text-xs leading-relaxed text-[var(--fp-muted)]">
             {brief.disclaimer}
           </p>

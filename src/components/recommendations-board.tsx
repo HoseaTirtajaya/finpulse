@@ -6,6 +6,7 @@ import { ArrowDownRight, ArrowUpRight, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useWatchlist } from "@/components/watchlist-provider";
+import { formatChangePct, formatPrice } from "@/lib/instruments";
 import type {
   RecAction,
   Recommendation,
@@ -74,8 +75,8 @@ export function RecommendationsBoard() {
             Recommendations
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[var(--fp-muted)]">
-            Transparent scores from headline tone, mention share, coverage, and
-            short-term price action — then a posture, not a hard buy/sell.
+            Transparent scores from news tone, mention velocity, coverage, price,
+            MA trend, and 52-week range — then a posture, not a hard buy/sell.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -169,7 +170,7 @@ function RecommendationRow({
   idea: Recommendation;
   rank: number;
 }) {
-  const up = idea.changePct >= 0;
+  const up = (idea.changePct ?? 0) >= 0;
   return (
     <article className="rounded-xl border border-[var(--fp-line)] bg-white/55 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -191,6 +192,9 @@ function RecommendationRow({
               <Badge variant="outline" className="rounded-sm font-mono">
                 score {idea.score}
               </Badge>
+              <Badge variant="outline" className="rounded-sm">
+                {idea.market}
+              </Badge>
             </div>
             <p className="mt-1 text-sm text-[var(--fp-muted)]">
               {idea.name} · {idea.sector}
@@ -199,32 +203,37 @@ function RecommendationRow({
         </div>
         <div className="text-right">
           <p className="font-mono text-xl text-[var(--fp-ink)]">
-            {idea.lastPrice.toLocaleString(undefined, {
-              maximumFractionDigits: idea.lastPrice < 10 ? 4 : 2,
-            })}
+            {formatPrice(idea.lastPrice, idea.currency)}
           </p>
           <p
             className={cn(
               "inline-flex items-center gap-1 font-mono text-sm",
-              up ? "text-[var(--fp-up)]" : "text-[var(--fp-down)]",
+              idea.changePct == null
+                ? "text-[var(--fp-muted)]"
+                : up
+                  ? "text-[var(--fp-up)]"
+                  : "text-[var(--fp-down)]",
             )}
           >
-            {up ? (
-              <ArrowUpRight className="size-3.5" />
-            ) : (
-              <ArrowDownRight className="size-3.5" />
-            )}
-            {up ? "+" : ""}
-            {idea.changePct.toFixed(2)}% · {idea.quoteSource}
+            {idea.changePct != null &&
+              (up ? (
+                <ArrowUpRight className="size-3.5" />
+              ) : (
+                <ArrowDownRight className="size-3.5" />
+              ))}
+            {formatChangePct(idea.changePct)}
+            {idea.quoteSource ? ` · ${idea.quoteSource}` : " · unavailable"}
           </p>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <ScoreCell label="News tone" value={idea.breakdown.newsTone} />
         <ScoreCell label="Mentions" value={idea.breakdown.mentionMomentum} />
         <ScoreCell label="Price" value={idea.breakdown.priceAction} />
         <ScoreCell label="Coverage" value={idea.breakdown.coverage} />
+        <ScoreCell label="MA trend" value={idea.breakdown.maTrend} />
+        <ScoreCell label="Range" value={idea.breakdown.rangePosition} />
       </div>
 
       <ul className="mt-4 space-y-1.5 text-sm text-[var(--fp-ink)]/90">

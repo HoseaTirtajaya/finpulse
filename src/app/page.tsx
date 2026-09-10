@@ -1,24 +1,31 @@
 import Link from "next/link";
 import { AiBriefPanel } from "@/components/ai-brief-panel";
+import { MarketHoursRail } from "@/components/market-hours-rail";
 import { NewsCard } from "@/components/news-card";
 import { TrendRail } from "@/components/trend-rail";
 import { WatchlistBoard } from "@/components/watchlist-board";
-import { fetchFinancialNews } from "@/lib/news/fetch-news";
+import { getCachedNews } from "@/lib/cache";
 import { buildTrendSignals } from "@/lib/trends";
-import type { NewsCategory } from "@/lib/types";
+import type { MarketFilter } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type HomeProps = {
-  searchParams: Promise<{ category?: string; q?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; market?: string }>;
 };
 
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
-  const category = (params.category as NewsCategory) || "all";
+  const category = params.category || "all";
   const q = params.q?.trim() || undefined;
+  const market = (params.market as MarketFilter) || "all";
 
-  const news = await fetchFinancialNews({ category, q });
+  const news = await getCachedNews({
+    scope: "finance",
+    category,
+    q,
+    market,
+  });
   const trends = buildTrendSignals(news.items);
 
   return (
@@ -29,14 +36,14 @@ export default async function Home({ searchParams }: HomeProps) {
           <div className="max-w-3xl">
             <p className="mb-3 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-[var(--fp-accent)] uppercase">
               <span className="hero-live-dot size-2 rounded-full bg-[var(--fp-accent)]" />
-              Phase 2 · News, watchlist & rankings
+              Finance · US + IDX
             </p>
             <h1 className="font-[family-name:var(--font-display)] text-5xl leading-[1.05] tracking-tight text-[var(--fp-ink)] md:text-7xl">
               FinPulse
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-[var(--fp-muted)] md:text-xl">
-              Gather market headlines, keep a personal watchlist with live-ish
-              quotes, and rank ideas with transparent research scores.
+              Real market headlines, a personal watchlist with live quotes, and
+              transparent idea rankings — no invented news or demo prices.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
@@ -51,6 +58,12 @@ export default async function Home({ searchParams }: HomeProps) {
               >
                 Rank ideas
               </Link>
+              <Link
+                href="/general"
+                className="rounded-md border border-[var(--fp-line)] bg-white/60 px-5 py-2.5 text-sm font-medium text-[var(--fp-ink)] transition hover:border-[var(--fp-accent)]"
+              >
+                General news
+              </Link>
             </div>
           </div>
         </div>
@@ -61,7 +74,7 @@ export default async function Home({ searchParams }: HomeProps) {
           <WatchlistBoard />
 
           <section id="brief">
-            <AiBriefPanel />
+            <AiBriefPanel scope="finance" />
           </section>
 
           <section id="feed">
@@ -71,9 +84,12 @@ export default async function Home({ searchParams }: HomeProps) {
                   Headline feed
                 </h2>
                 <p className="mt-1 text-sm text-[var(--fp-muted)]">
-                  {news.usedFallback
-                    ? "Live RSS was limited — showing desk corpus plus any live sources."
-                    : `Live from ${news.liveSources.join(", ")}.`}
+                  {news.liveSources.length > 0
+                    ? `Live from ${news.liveSources.join(", ")}.`
+                    : "No live sources responded."}
+                  {news.failedSources.length > 0
+                    ? ` Failed: ${news.failedSources.join(", ")}.`
+                    : ""}
                   {" · "}
                   {news.items.length} stories
                   {q ? ` matching “${q}”` : ""}
@@ -90,10 +106,12 @@ export default async function Home({ searchParams }: HomeProps) {
             {news.items.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[var(--fp-line)] bg-white/40 px-6 py-14 text-center">
                 <p className="font-[family-name:var(--font-display)] text-xl text-[var(--fp-ink)]">
-                  No headlines matched
+                  No headlines available
                 </p>
                 <p className="mt-2 text-sm text-[var(--fp-muted)]">
-                  Try another category or clear the search.
+                  {news.failedSources.length > 0
+                    ? `Sources unreachable: ${news.failedSources.join(", ")}.`
+                    : "Try another category or clear the search."}
                 </p>
               </div>
             ) : (
@@ -107,12 +125,13 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
 
         <aside className="space-y-6 md:sticky md:top-24 md:self-start">
+          <MarketHoursRail />
           <div className="rounded-xl border border-[var(--fp-line)] bg-white/55 p-5 backdrop-blur-sm">
             <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--fp-ink)]">
               Theme pulse
             </h2>
             <p className="mt-1 mb-4 text-sm text-[var(--fp-muted)]">
-              Headline tone by theme — a first cut at “what’s trending.”
+              Headline tone by theme from the live finance feed.
             </p>
             <TrendRail trends={trends} />
           </div>
@@ -121,9 +140,8 @@ export default async function Home({ searchParams }: HomeProps) {
               Rank your watchlist
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-white/75">
-              Phase 2 scores each name on news tone, mention share, coverage,
-              and price action — then suggests lean in, watch, lean out, or
-              needs data.
+              Scores blend news tone, mention velocity, MA trend, and range
+              position — then suggest lean in, watch, lean out, or needs data.
             </p>
             <Link
               href="/recommendations"

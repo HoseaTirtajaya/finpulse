@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { INSTRUMENTS } from "@/lib/instruments";
-import { fetchQuotes } from "@/lib/quotes/fetch-quotes";
+import { getCachedQuotes } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +11,13 @@ export async function GET(request: NextRequest) {
     : INSTRUMENTS.map((i) => i.symbol);
 
   try {
-    const quotes = await fetchQuotes(symbols);
-    const liveCount = quotes.filter((q) => q.source === "live").length;
+    const quotes = await getCachedQuotes(symbols.join(","));
     return NextResponse.json({
       quotes,
-      liveCount,
-      demoCount: quotes.length - liveCount,
+      liveCount: quotes.length,
+      missing: symbols.filter(
+        (s) => !quotes.some((q) => q.symbol.toUpperCase() === s.toUpperCase()),
+      ),
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {

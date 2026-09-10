@@ -68,8 +68,8 @@ export function WatchlistBoard() {
             {loading
               ? "Refreshing quotes…"
               : liveCount > 0
-                ? `${liveCount} live quote${liveCount === 1 ? "" : "s"} · rest demo fallback.`
-                : "Showing demo quotes (live feed unavailable)."}
+                ? `${liveCount} live quote${liveCount === 1 ? "" : "s"}.`
+                : "No live quotes returned — symbols show as — until data arrives."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -97,20 +97,13 @@ export function WatchlistBoard() {
         <div className="flex gap-2 overflow-x-auto pb-2">
           {watched.map((instrument, i) => {
             const q = quoteMap.get(instrument.symbol.toUpperCase());
-            const enriched = q
-              ? {
-                  ...instrument,
-                  lastPrice: q.price,
-                  changePct: q.changePct,
-                }
-              : instrument;
             return (
               <div
                 key={instrument.symbol}
                 className="relative"
                 style={{ animationDelay: `${i * 35}ms` }}
               >
-                <InstrumentChip instrument={enriched} active />
+                <InstrumentChip instrument={instrument} quote={q} active />
                 <button
                   type="button"
                   aria-label={`Remove ${instrument.symbol}`}
@@ -151,6 +144,7 @@ export function WatchlistBoard() {
                   )}
                 />
                 {inst.symbol}
+                <span className="text-[10px] opacity-70">{inst.market}</span>
               </button>
             );
           })}

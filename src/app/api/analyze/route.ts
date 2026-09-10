@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateBrief } from "@/lib/ai/analyze";
-import { fetchFinancialNews } from "@/lib/news/fetch-news";
+import { getCachedNews } from "@/lib/cache";
+import type { NewsScope } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -9,18 +10,18 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as {
       symbol?: string;
       category?: string;
+      scope?: NewsScope;
     };
     const symbol = body.symbol?.trim();
-    const category = (body.category as "all") || "all";
+    const scope = body.scope ?? "finance";
+    const category = body.category || "all";
 
-    let news = await fetchFinancialNews({ symbol, category });
-    // If a symbol filter returns nothing, fall back to the broad tape so the
-    // brief still has headline material to summarize.
+    let news = await getCachedNews({ scope, symbol, category });
     if (symbol && news.items.length === 0) {
-      news = await fetchFinancialNews({ category });
+      news = await getCachedNews({ scope, category });
     }
 
-    const brief = await generateBrief(news.items, symbol);
+    const brief = await generateBrief(news.items, symbol, scope);
     return NextResponse.json({ brief, articleCount: news.items.length });
   } catch (error) {
     console.error(error);

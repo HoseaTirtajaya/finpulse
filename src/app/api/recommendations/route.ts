@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { INSTRUMENTS } from "@/lib/instruments";
-import { fetchFinancialNews } from "@/lib/news/fetch-news";
-import { fetchQuotes } from "@/lib/quotes/fetch-quotes";
+import { getCachedNews, getCachedQuotes } from "@/lib/cache";
 import { rankRecommendations } from "@/lib/recommend/rank";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +17,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const [news, quotes] = await Promise.all([
-      fetchFinancialNews({ category: "all" }),
-      fetchQuotes(symbols),
+      getCachedNews({ scope: "finance", category: "all" }),
+      getCachedQuotes(symbols.join(",")),
     ]);
-    const bundle = rankRecommendations({
+    const bundle = await rankRecommendations({
       symbols,
       news: news.items,
       quotes,

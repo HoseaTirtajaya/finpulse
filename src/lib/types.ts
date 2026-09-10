@@ -1,9 +1,24 @@
-export type NewsCategory =
+export type NewsScope = "finance" | "general" | "trending";
+
+export type MarketFilter = "all" | "US" | "ID";
+
+export type FinanceCategory =
   | "markets"
   | "equities"
   | "macro"
   | "crypto"
   | "all";
+
+export type GeneralCategory =
+  | "world"
+  | "tech"
+  | "politics"
+  | "sports"
+  | "culture"
+  | "all";
+
+/** Union used by filters; finance and general categories share the chip UI. */
+export type NewsCategory = FinanceCategory | GeneralCategory;
 
 export type NewsItem = {
   id: string;
@@ -12,8 +27,10 @@ export type NewsItem = {
   url: string;
   source: string;
   publishedAt: string;
-  category: Exclude<NewsCategory, "all">;
+  category: string;
   tickers: string[];
+  scope: Exclude<NewsScope, "trending">;
+  language?: "en" | "id";
   imageUrl?: string;
 };
 
@@ -23,9 +40,13 @@ export type Instrument = {
   type: "equity" | "etf" | "index" | "crypto" | "fx";
   sector: string;
   description: string;
-  lastPrice: number;
-  changePct: number;
+  market: "US" | "ID";
+  currency: "USD" | "IDR";
+  /** Yahoo Finance chart symbol */
+  yahooSymbol: string;
   tags: string[];
+  /** Alternate names for headline matching */
+  aliases?: string[];
 };
 
 export type Quote = {
@@ -34,7 +55,16 @@ export type Quote = {
   changePct: number;
   currency?: string;
   asOf: string;
-  source: "live" | "demo";
+  source: "live";
+};
+
+export type Candle = {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
 };
 
 export type TrendSignal = {
@@ -45,16 +75,28 @@ export type TrendSignal = {
   relatedTickers: string[];
 };
 
+export type TrendCluster = {
+  id: string;
+  title: string;
+  score: number;
+  sourceCount: number;
+  sources: string[];
+  headlines: { title: string; source: string; url: string; publishedAt: string }[];
+  mentionCount: number;
+};
+
 export type AiBrief = {
   instrumentSymbol?: string;
+  scope?: NewsScope;
   headline: string;
   stance: "constructive" | "cautious" | "neutral" | "mixed";
   summary: string;
   bullets: string[];
   risks: string[];
   whatToWatch: string[];
+  citedHeadlines: string[];
   disclaimer: string;
-  model: "heuristic" | "llm";
+  model: "heuristic" | "gemini" | "openai" | "anthropic";
   generatedAt: string;
 };
 
@@ -65,20 +107,24 @@ export type ScoreBreakdown = {
   mentionMomentum: number;
   priceAction: number;
   coverage: number;
+  maTrend: number;
+  rangePosition: number;
 };
 
 export type Recommendation = {
   symbol: string;
   name: string;
   sector: string;
+  market: "US" | "ID";
+  currency: "USD" | "IDR";
   action: RecAction;
   score: number;
   breakdown: ScoreBreakdown;
   reasons: string[];
   mentionCount: number;
-  changePct: number;
-  lastPrice: number;
-  quoteSource: "live" | "demo";
+  changePct: number | null;
+  lastPrice: number | null;
+  quoteSource: "live" | null;
   topHeadlines: string[];
 };
 

@@ -9,10 +9,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { INSTRUMENTS } from "@/lib/instruments";
 
 const STORAGE_KEY = "finpulse.watchlist.v1";
-const DEFAULT_SYMBOLS = INSTRUMENTS.slice(0, 6).map((i) => i.symbol);
+const DEFAULT_SYMBOLS = ["SPY", "NVDA", "AAPL", "BBCA", "BBRI", "^JKSE"];
 
 type WatchlistContextValue = {
   symbols: string[];
