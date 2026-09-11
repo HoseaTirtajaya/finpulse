@@ -32,10 +32,16 @@ const GENERAL_CATEGORIES = [
   { id: "culture", label: "Culture" },
 ];
 
-const MARKETS: { id: MarketFilter; label: string }[] = [
+const FINANCE_MARKETS: { id: MarketFilter; label: string }[] = [
   { id: "all", label: "All markets" },
   { id: "US", label: "US" },
   { id: "ID", label: "IDX" },
+];
+
+const GENERAL_REGIONS: { id: MarketFilter; label: string }[] = [
+  { id: "world", label: "World" },
+  { id: "ID", label: "Indonesia" },
+  { id: "all", label: "All" },
 ];
 
 function scopeFromPath(pathname: string): NewsScope {
@@ -52,7 +58,9 @@ export function SiteHeader() {
   const [q, setQ] = useState(searchParams.get("q") ?? "");
   const [pending, startTransition] = useTransition();
   const activeCategory = searchParams.get("category") || "all";
-  const activeMarket = (searchParams.get("market") as MarketFilter) || "all";
+  const defaultMarket: MarketFilter = scope === "general" ? "world" : "all";
+  const activeMarket =
+    (searchParams.get("market") as MarketFilter) || defaultMarket;
   const basePath =
     scope === "general" ? "/general" : scope === "trending" ? "/trending" : "/";
   const categories =
@@ -60,6 +68,12 @@ export function SiteHeader() {
       ? GENERAL_CATEGORIES
       : scope === "finance"
         ? FINANCE_CATEGORIES
+        : [];
+  const regionChips =
+    scope === "finance"
+      ? FINANCE_MARKETS
+      : scope === "general"
+        ? GENERAL_REGIONS
         : [];
 
   function hrefFor(opts: {
@@ -73,6 +87,10 @@ export function SiteHeader() {
     const query = opts.q ?? q;
     if (category && category !== "all") params.set("category", category);
     if (scope === "finance" && market && market !== "all") {
+      params.set("market", market);
+    }
+    // General defaults to world — omit param when world so URLs stay clean.
+    if (scope === "general" && market && market !== "world") {
       params.set("market", market);
     }
     if (query.trim()) params.set("q", query.trim());
@@ -108,6 +126,15 @@ export function SiteHeader() {
           ))}
         </nav>
         <nav className="flex items-center gap-4 text-sm">
+          <Link
+            href="/crypto"
+            className={cn(
+              "transition hover:text-[var(--fp-accent)]",
+              pathname.startsWith("/crypto") && "text-[var(--fp-accent)]",
+            )}
+          >
+            Crypto
+          </Link>
           {scope === "finance" && (
             <>
               <Link
@@ -140,9 +167,9 @@ export function SiteHeader() {
       {(scope === "finance" || scope === "general") && (
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 pb-4 md:px-6">
           <div className="flex flex-wrap items-center gap-3">
-            {scope === "finance" && (
+            {regionChips.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {MARKETS.map((m) => (
+                {regionChips.map((m) => (
                   <Link
                     key={m.id}
                     href={hrefFor({ market: m.id })}

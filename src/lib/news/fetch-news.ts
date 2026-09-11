@@ -1,9 +1,11 @@
 import Parser from "rss-parser";
 import type {
+  FeedMarket,
   MarketFilter,
   NewsItem,
   NewsScope,
 } from "@/lib/types";
+import { articleDedupKey, normalizeArticleUrl } from "@/lib/ingest/helpers";
 import { FINANCE_SOURCES, inferFinanceCategory } from "@/lib/news/sources/finance";
 import {
   GENERAL_SOURCES,
@@ -15,7 +17,7 @@ import type { FeedSource } from "@/lib/news/sources/finance";
 const parser = new Parser({
   timeout: 8000,
   headers: {
-    "User-Agent": "FinPulse/0.3 (+https://localhost; research aggregator)",
+    "User-Agent": "FinPulse/0.4 (+https://localhost; research aggregator)",
     Accept: "application/rss+xml, application/xml, text/xml, */*",
   },
 });
@@ -26,6 +28,10 @@ export type NewsFetchResult = {
   failedSources: string[];
   fetchedAt: string;
   scope: NewsScope;
+  /** True when rows came from Postgres ingest store */
+  fromStore?: boolean;
+  /** Store connected but no rows yet */
+  emptyStore?: boolean;
 };
 
 function stripHtml(input: string): string {
@@ -33,6 +39,19 @@ function stripHtml(input: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Whether a feed market matches the UI filter. */
+export function feedMatchesMarket(
+  feedMarket: FeedMarket | undefined,
+  filter: MarketFilter,
+): boolean {
+  if (filter === "all") return true;
+  const m = feedMarket ?? "global";
+  if (filter === "world") return m === "global" || m === "US";
+  if (filter === "ID") return m === "ID";
+  if (filter === "US") return m === "US" || m === "global";
+  return true;
 }
 
 async function fetchFeed(
@@ -48,7 +67,7 @@ async function fetchFeed(
       const summary = stripHtml(
         item.contentSnippet || item.summary || item.content || "",
       ).slice(0, 360);
-      const urlLink = item.link || item.guid || "#";
+      const urlLink = normalizeArticleUrl(item.link || item.guid || "#");
       const publishedAt = item.isoDate
         ? new Date(item.isoDate).toISOString()
         : item.pubDate
@@ -69,20 +88,21 @@ async function fetchFeed(
         tickers: scope === "finance" ? extractTickers(`${title} ${summary}`) : [],
         scope,
         language: source.language,
+        market: source.market ?? (source.language === "id" ? "ID" : "global"),
       } satisfies NewsItem;
     });
 }
 
 function sourcesForScope(scope: NewsScope): FeedSource[] {
   if (scope === "general" || scope === "trending") {
-    // Trending clusters across general (+ finance) for broader velocity.
     if (scope === "trending") return [...GENERAL_SOURCES, ...FINANCE_SOURCES];
     return GENERAL_SOURCES;
   }
   return FINANCE_SOURCES;
 }
 
-export async function fetchNews(options?: {
+/** Live RSS fan-out — used when DATABASE_URL is unset or DB query fails. */
+export async function fetchNewsLive(options?: {
   scope?: NewsScope;
   category?: string;
   q?: string;
@@ -113,7 +133,8 @@ export async function fetchNews(options?: {
   const liveItems: NewsItem[] = [];
 
   settled.forEach((result, idx) => {
-    if (result.status === "fulfilled" && result.value.length > 0) {
+    if (result.status === "fulfilled") {
+      // Empty feed is success (reachable), not a failure.
       liveSources.push(sources[idx].name);
       liveItems.push(...result.value);
     } else {
@@ -123,7 +144,7 @@ export async function fetchNews(options?: {
 
   const deduped = new Map<string, NewsItem>();
   for (const item of liveItems) {
-    const key = item.title.toLowerCase().slice(0, 80);
+    const key = articleDedupKey(item.url, item.title);
     if (!deduped.has(key)) deduped.set(key, item);
   }
 
@@ -132,19 +153,24 @@ export async function fetchNews(options?: {
       new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
   );
 
+  if (scope === "trending") {
+    const worldItems = items.filter((i) => i.market !== "ID");
+    const idItems = items.filter((i) => i.market === "ID");
+    items = [...worldItems.slice(0, 60), ...idItems.slice(0, 60)].sort(
+      (a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+    );
+  }
+
   const category = options?.category ?? "all";
   if (category !== "all") {
     items = items.filter((i) => i.category === category);
   }
 
-  const market = options?.market ?? "all";
-  if (scope === "finance" && market !== "all") {
-    const allowed = new Set(
-      sources
-        .filter((s) => s.market === market || s.market === "global")
-        .map((s) => s.name),
-    );
-    items = items.filter((i) => allowed.has(i.source));
+  const market =
+    options?.market ?? (scope === "general" ? "world" : "all");
+  if (scope !== "trending" && market !== "all") {
+    items = items.filter((i) => feedMatchesMarket(i.market, market));
   }
 
   const q = options?.q?.trim().toLowerCase();
@@ -164,21 +190,35 @@ export async function fetchNews(options?: {
     items = items.filter(
       (i) =>
         i.tickers.some((t) => t.toUpperCase() === normalized) ||
-        i.title.toUpperCase().includes(normalized.replace("-USD", "").replace("^", "")) ||
+        i.title
+          .toUpperCase()
+          .includes(normalized.replace("-USD", "").replace("^", "")) ||
         i.summary
           .toUpperCase()
           .includes(normalized.replace("-USD", "").replace("^", "")),
     );
   }
 
+  const sliced =
+    scope === "trending" ? items.slice(0, 120) : items.slice(0, 80);
+  const shownSources = Array.from(new Set(sliced.map((i) => i.source)));
+  const relevantFailed =
+    market === "all" || scope === "trending"
+      ? failedSources
+      : failedSources.filter((name) => {
+          const src = sources.find((s) => s.name === name);
+          return src ? feedMatchesMarket(src.market, market) : true;
+        });
+
   return {
-    items: items.slice(0, 80),
-    liveSources: Array.from(new Set(liveSources)),
-    failedSources: Array.from(new Set(failedSources)),
+    items: sliced,
+    liveSources: shownSources,
+    failedSources: Array.from(new Set(relevantFailed)),
     fetchedAt: new Date().toISOString(),
     scope,
+    fromStore: false,
   };
 }
 
-/** @deprecated use fetchNews — kept for gradual call-site migration */
-export const fetchFinancialNews = fetchNews;
+/** @deprecated use fetchNews from @/lib/news/query-news */
+export const fetchFinancialNews = fetchNewsLive;

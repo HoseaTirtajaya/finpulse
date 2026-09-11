@@ -4,7 +4,6 @@ import { buildTrendSignals } from "@/lib/trends";
 import { buildTrendClusters } from "@/lib/news/trending";
 import type { MarketFilter, NewsScope } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -25,7 +24,9 @@ export async function GET(request: NextRequest) {
     const trends =
       scope === "finance" ? buildTrendSignals(result.items) : [];
     const clusters =
-      scope === "trending" ? buildTrendClusters(result.items) : [];
+      scope === "trending"
+        ? buildTrendClusters(result.items, Date.now())
+        : { world: [], indonesia: [] };
     return NextResponse.json({ ...result, trends, clusters });
   } catch (error) {
     console.error(error);

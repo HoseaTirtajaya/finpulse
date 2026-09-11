@@ -1,32 +1,15 @@
+import { connection } from "next/server";
 import { AiBriefPanel } from "@/components/ai-brief-panel";
 import { TrendingClusters } from "@/components/trending-clusters";
 import { getCachedNews } from "@/lib/cache";
 import { buildTrendClusters } from "@/lib/news/trending";
-import { generateBrief } from "@/lib/ai/analyze";
 
-export const dynamic = "force-dynamic";
+export const instant = false;
 
 export default async function TrendingPage() {
+  await connection();
   const news = await getCachedNews({ scope: "trending" });
-  const clusters = buildTrendClusters(news.items);
-  const topHeadlines = clusters.flatMap((c) =>
-    c.headlines.map((h) => ({
-      id: h.url,
-      title: h.title,
-      summary: "",
-      url: h.url,
-      source: h.source,
-      publishedAt: h.publishedAt,
-      category: "world",
-      tickers: [] as string[],
-      scope: "general" as const,
-    })),
-  );
-  const brief = await generateBrief(
-    topHeadlines.slice(0, 10),
-    undefined,
-    "trending",
-  );
+  const lanes = buildTrendClusters(news.items, Date.now());
 
   return (
     <main className="relative flex-1">
@@ -40,8 +23,9 @@ export default async function TrendingPage() {
             Rising across outlets
           </h1>
           <p className="mt-3 max-w-xl text-[var(--fp-muted)]">
-            Stories clustered by title similarity and ranked by unique-source
-            count × recency — a velocity proxy, not a buy signal.
+            World and Indonesia ranked separately by unique-source count ×
+            recency. A story needs two or more outlets in its region — a
+            velocity proxy, not a buy signal.
           </p>
           <p className="mt-2 text-sm text-[var(--fp-muted)]">
             {news.liveSources.length > 0
@@ -55,9 +39,9 @@ export default async function TrendingPage() {
       </section>
 
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 md:grid-cols-[minmax(0,1fr)_320px] md:px-6">
-        <TrendingClusters clusters={clusters} />
+        <TrendingClusters lanes={lanes} />
         <aside className="md:sticky md:top-24 md:self-start" id="brief">
-          <AiBriefPanel scope="trending" initialBrief={brief} />
+          <AiBriefPanel scope="trending" />
         </aside>
       </div>
     </main>

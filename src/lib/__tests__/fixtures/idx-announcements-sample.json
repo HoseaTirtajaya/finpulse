@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "pengumuman": {
+        "Id": 12345,
+        "JudulPengumuman": "Penyampaian Laporan Keuangan Tahunan 2025",
+        "Kode_Emiten": "BBCA",
+        "TglPengumuman": "2026-09-10T08:00:00"
+      },
+      "attachments": [
+        {
+          "SavedPath": "/Portals/0/StaticData/NewsAndAnnouncement/BBCA-report.pdf"
+        }
+      ]
+    },
+    {
+      "pengumuman": {
+        "Id": 12346,
+        "JudulPengumuman": "Rencana RUPSLB",
+        "Kode_Emiten": "BBRI",
+        "TglPengumuman": "2026-09-09T10:00:00"
+      },
+      "attachments": []
+    }
+  ]
+}

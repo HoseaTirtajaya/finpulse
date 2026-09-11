@@ -1,31 +1,38 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { AiBriefPanel } from "@/components/ai-brief-panel";
+import { CurrencyConverter } from "@/components/currency-converter";
+import { MacroCalendarRail } from "@/components/macro-calendar-rail";
 import { MarketHoursRail } from "@/components/market-hours-rail";
 import { NewsCard } from "@/components/news-card";
 import { TrendRail } from "@/components/trend-rail";
 import { WatchlistBoard } from "@/components/watchlist-board";
-import { getCachedNews } from "@/lib/cache";
+import { getCachedMacroEvents, getCachedNews } from "@/lib/cache";
 import { buildTrendSignals } from "@/lib/trends";
 import type { MarketFilter } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const instant = false;
 
 type HomeProps = {
   searchParams: Promise<{ category?: string; q?: string; market?: string }>;
 };
 
 export default async function Home({ searchParams }: HomeProps) {
+  await connection();
   const params = await searchParams;
   const category = params.category || "all";
   const q = params.q?.trim() || undefined;
   const market = (params.market as MarketFilter) || "all";
 
-  const news = await getCachedNews({
-    scope: "finance",
-    category,
-    q,
-    market,
-  });
+  const [news, macroEvents] = await Promise.all([
+    getCachedNews({
+      scope: "finance",
+      category,
+      q,
+      market,
+    }),
+    getCachedMacroEvents(),
+  ]);
   const trends = buildTrendSignals(news.items);
 
   return (
@@ -106,12 +113,16 @@ export default async function Home({ searchParams }: HomeProps) {
             {news.items.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[var(--fp-line)] bg-white/40 px-6 py-14 text-center">
                 <p className="font-[family-name:var(--font-display)] text-xl text-[var(--fp-ink)]">
-                  No headlines available
+                  {news.emptyStore
+                    ? "Awaiting first ingest"
+                    : "No headlines available"}
                 </p>
                 <p className="mt-2 text-sm text-[var(--fp-muted)]">
-                  {news.failedSources.length > 0
-                    ? `Sources unreachable: ${news.failedSources.join(", ")}.`
-                    : "Try another category or clear the search."}
+                  {news.emptyStore
+                    ? "Database is connected but empty. Run npm run ingest (or wait for cron)."
+                    : news.failedSources.length > 0
+                      ? `Sources unreachable: ${news.failedSources.join(", ")}.`
+                      : "Try another category or clear the search."}
                 </p>
               </div>
             ) : (
@@ -126,6 +137,8 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <aside className="space-y-6 md:sticky md:top-24 md:self-start">
           <MarketHoursRail />
+          <CurrencyConverter />
+          <MacroCalendarRail events={macroEvents} />
           <div className="rounded-xl border border-[var(--fp-line)] bg-white/55 p-5 backdrop-blur-sm">
             <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--fp-ink)]">
               Theme pulse

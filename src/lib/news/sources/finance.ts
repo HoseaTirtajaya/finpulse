@@ -1,4 +1,4 @@
-import type { FinanceCategory } from "@/lib/types";
+import type { FinanceCategory, FeedMarket } from "@/lib/types";
 
 export type FeedSource = {
   id: string;
@@ -6,7 +6,7 @@ export type FeedSource = {
   url: string;
   category: Exclude<FinanceCategory, "all"> | string;
   language: "en" | "id";
-  market?: "US" | "ID" | "global";
+  market?: FeedMarket;
 };
 
 /** Public finance RSS — Indonesian feeds verified 200 from this machine. */
@@ -99,13 +99,30 @@ export const FINANCE_SOURCES: FeedSource[] = [
     language: "id",
     market: "ID",
   },
+  {
+    id: "coindesk",
+    name: "CoinDesk",
+    url: "https://www.coindesk.com/arc/outboundfeeds/rss/",
+    category: "crypto",
+    language: "en",
+    market: "global",
+  },
+  {
+    id: "cointelegraph",
+    name: "CoinTelegraph",
+    url: "https://cointelegraph.com/rss",
+    category: "crypto",
+    language: "en",
+    market: "global",
+  },
 ];
 
 const FINANCE_CATEGORY_HINTS: Record<
   Exclude<FinanceCategory, "all">,
   RegExp
 > = {
-  crypto: /\b(bitcoin|crypto|ethereum|btc|eth|digital asset|blockchain|kripto)\b/i,
+  crypto:
+    /\b(bitcoin|crypto|ethereum|solana|ripple|cardano|dogecoin|avalanche|polkadot|chainlink|polygon|litecoin|uniswap|arbitrum|optimism|toncoin|shiba|btc|eth|sol|xrp|bnb|ada|doge|avax|dot|link|matic|trx|ton|shib|ltc|atom|uni|near|apt|icp|fil|arb|sui|digital asset|blockchain|kripto|defi|web3)\b/i,
   macro:
     /\b(fed|inflation|cpi|gdp|treasury|rates|economy|jobs|unemployment|ecb|bi rate|inflasi|suku bunga|rupiah)\b/i,
   equities:

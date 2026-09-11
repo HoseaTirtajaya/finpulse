@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { INSTRUMENTS } from "@/lib/instruments";
 import { getCachedQuotes } from "@/lib/cache";
 
-export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("symbols");

@@ -1,19 +1,22 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { AiBriefPanel } from "@/components/ai-brief-panel";
 import { NewsCard } from "@/components/news-card";
 import { WatchlistToggle } from "@/components/watchlist-toggle";
-import { generateBrief } from "@/lib/ai/analyze";
 import {
   formatChangePct,
+  formatCompactUsd,
   formatPrice,
   getInstrument,
   INSTRUMENTS,
 } from "@/lib/instruments";
 import { getCachedNews, getCachedQuotes } from "@/lib/cache";
+import { matchesInstrument } from "@/lib/news/match-instrument";
+import { toneScoreFromItems } from "@/lib/sentiment";
 import { cn } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
+export const instant = false;
 
 type PageProps = {
   params: Promise<{ symbol: string }>;
@@ -23,34 +26,70 @@ export function generateStaticParams() {
   return INSTRUMENTS.map((i) => ({ symbol: i.symbol }));
 }
 
+function stanceFromScore(score: number): {
+  label: string;
+  className: string;
+} {
+  if (score >= 12)
+    return { label: "constructive", className: "bg-emerald-100 text-emerald-900" };
+  if (score <= -12)
+    return { label: "cautious", className: "bg-amber-100 text-amber-950" };
+  if (score > 3 || score < -3)
+    return { label: "mixed", className: "bg-sky-100 text-sky-950" };
+  return { label: "neutral", className: "bg-slate-100 text-slate-800" };
+}
+
 export default async function InstrumentPage({ params }: PageProps) {
+  await connection();
   const { symbol: raw } = await params;
   const symbol = decodeURIComponent(raw);
   const instrument = getInstrument(symbol);
   if (!instrument) notFound();
 
-  const [news, quotes] = await Promise.all([
-    getCachedNews({ scope: "finance", symbol: instrument.symbol }),
+  const [financeNews, trendingNews, quotes] = await Promise.all([
+    getCachedNews({ scope: "finance", category: "all" }),
+    getCachedNews({ scope: "trending" }),
     getCachedQuotes(instrument.symbol),
   ]);
+
+  const seen = new Set<string>();
+  const related = [...financeNews.items, ...trendingNews.items].filter(
+    (item) => {
+      if (seen.has(item.id)) return false;
+      const ok = matchesInstrument(
+        item,
+        instrument.symbol,
+        instrument.name,
+        instrument.aliases,
+      );
+      if (ok) seen.add(item.id);
+      return ok;
+    },
+  );
+
   const quote = quotes[0];
-  const brief = await generateBrief(news.items, instrument.symbol, "finance");
   const changePct = quote?.changePct ?? null;
   const up = changePct != null ? changePct >= 0 : true;
+  const isCrypto = instrument.type === "crypto";
+  const toneScore = toneScoreFromItems(related);
+  const stance = stanceFromScore(toneScore);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 md:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/" className="text-sm text-[var(--fp-accent)] hover:underline">
-          ← Back to feed
+        <Link
+          href={isCrypto ? "/crypto" : "/recommendations"}
+          className="text-sm text-[var(--fp-accent)] hover:underline"
+        >
+          ← Back to {isCrypto ? "crypto markets" : "recommendations"}
         </Link>
         <div className="flex gap-2">
           <WatchlistToggle symbol={instrument.symbol} />
           <Link
-            href="/recommendations"
+            href={isCrypto ? "/?category=crypto" : "/"}
             className="inline-flex h-8 items-center rounded-lg border border-[var(--fp-line)] bg-white/70 px-3 text-sm"
           >
-            Rank ideas
+            Headline feed
           </Link>
         </div>
       </div>
@@ -89,6 +128,36 @@ export default async function InstrumentPage({ params }: PageProps) {
               </p>
             </div>
           </div>
+
+          {isCrypto && quote && (
+            <dl className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-[var(--fp-line)] bg-white/60 px-4 py-3">
+                <dt className="text-xs tracking-wider text-[var(--fp-muted)] uppercase">
+                  Rank
+                </dt>
+                <dd className="mt-1 font-mono text-lg text-[var(--fp-ink)]">
+                  {quote.rank != null ? `#${quote.rank}` : "—"}
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--fp-line)] bg-white/60 px-4 py-3">
+                <dt className="text-xs tracking-wider text-[var(--fp-muted)] uppercase">
+                  Market cap
+                </dt>
+                <dd className="mt-1 font-mono text-lg text-[var(--fp-ink)]">
+                  {formatCompactUsd(quote.marketCap)}
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--fp-line)] bg-white/60 px-4 py-3">
+                <dt className="text-xs tracking-wider text-[var(--fp-muted)] uppercase">
+                  Volume 24h
+                </dt>
+                <dd className="mt-1 font-mono text-lg text-[var(--fp-ink)]">
+                  {formatCompactUsd(quote.volume24h)}
+                </dd>
+              </div>
+            </dl>
+          )}
+
           <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-[var(--fp-muted)]">
             {instrument.description}
           </p>
@@ -106,22 +175,59 @@ export default async function InstrumentPage({ params }: PageProps) {
       </section>
 
       <div className="mt-8 space-y-8">
-        <AiBriefPanel
-          symbol={instrument.symbol}
-          scope="finance"
-          initialBrief={brief}
-        />
+        {(isCrypto || related.length > 0) && (
+          <section className="rounded-xl border border-[var(--fp-line)] bg-white/55 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--fp-ink)]">
+                  News sentiment
+                </h2>
+                <p className="mt-1 text-sm text-[var(--fp-muted)]">
+                  Lexicon tone across {related.length} matched headline
+                  {related.length === 1 ? "" : "s"} (−40 to +40).
+                </p>
+              </div>
+              <div className="text-right">
+                <span
+                  className={cn(
+                    "inline-flex rounded-sm px-2 py-0.5 text-xs font-medium capitalize",
+                    stance.className,
+                  )}
+                >
+                  {stance.label}
+                </span>
+                <p
+                  className={cn(
+                    "mt-1 font-mono text-2xl",
+                    toneScore > 0
+                      ? "text-[var(--fp-up)]"
+                      : toneScore < 0
+                        ? "text-[var(--fp-down)]"
+                        : "text-[var(--fp-muted)]",
+                  )}
+                >
+                  {toneScore > 0 ? "+" : ""}
+                  {toneScore}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section>
           <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--fp-ink)]">
-            Related coverage
+            Related news
           </h2>
           <p className="mt-1 mb-4 text-sm text-[var(--fp-muted)]">
-            Headlines mentioning {instrument.symbol} or its narrative keywords.
+            Headlines matching {instrument.symbol}
+            {instrument.aliases?.length
+              ? ` / ${instrument.aliases.slice(0, 3).join(", ")}`
+              : ""}{" "}
+            from the finance + trending ingest pool ({related.length} matched).
           </p>
-          {news.items.length === 0 ? (
+          {related.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--fp-line)] bg-white/40 px-6 py-12 text-center text-sm text-[var(--fp-muted)]">
-              No matching stories in the current feed. Browse the{" "}
+              No matching stories in the current store. Run ingest or check the{" "}
               <Link href="/" className="text-[var(--fp-accent)] underline">
                 headline feed
               </Link>
@@ -129,12 +235,14 @@ export default async function InstrumentPage({ params }: PageProps) {
             </div>
           ) : (
             <div className="rounded-xl border border-[var(--fp-line)] bg-white/45 px-4 md:px-6">
-              {news.items.map((item, index) => (
+              {related.map((item, index) => (
                 <NewsCard key={item.id} item={item} index={index} />
               ))}
             </div>
           )}
         </section>
+
+        <AiBriefPanel symbol={instrument.symbol} scope="finance" />
       </div>
     </main>
   );

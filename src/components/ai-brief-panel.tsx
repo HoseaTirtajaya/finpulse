@@ -45,14 +45,15 @@ export function AiBriefPanel({
     }
   }
 
-  const title =
-    symbol
-      ? `${symbol} desk take`
-      : scope === "trending"
-        ? "What’s moving"
-        : scope === "general"
-          ? "General desk take"
-          : "What the tape is saying";
+  const title = symbol
+    ? `${symbol} retail research brief`
+    : scope === "trending"
+      ? "What’s moving"
+      : scope === "general"
+        ? "General desk take"
+        : "What the tape is saying";
+
+  const retail = Boolean(symbol);
 
   return (
     <section className="rounded-xl border border-[var(--fp-line)] bg-white/55 p-5 backdrop-blur-sm">
@@ -64,9 +65,10 @@ export function AiBriefPanel({
           <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--fp-ink)]">
             {title}
           </h2>
-          <p className="mt-1 max-w-md text-sm text-[var(--fp-muted)]">
-            Summarizes current headlines into stance, risks, and what to watch.
-            Uses a built-in heuristic; optional Gemini/OpenAI when configured.
+          <p className="mt-1 max-w-lg text-sm text-[var(--fp-muted)]">
+            {retail
+              ? "Generates probable outcomes, timing conditions, risk analysis, and pre-trade checks from matched headlines — research only, not a buy/sell call."
+              : "Click generate to synthesize stance, risks, and what to watch. Heuristic fallback; Gemini/OpenAI only on demand."}
           </p>
         </div>
         <button
@@ -88,8 +90,9 @@ export function AiBriefPanel({
 
       {!brief && !loading && !error && (
         <p className="mt-6 text-sm text-[var(--fp-muted)]">
-          No brief yet. Generate one to see a structured read of the latest
-          coverage.
+          {retail
+            ? "No brief yet. Generate one for bull/base/bear paths, when conditions favor patience vs engagement, and a risk checklist."
+            : "No brief yet. Generate one to see a structured read of the latest coverage."}
         </p>
       )}
 
@@ -117,22 +120,60 @@ export function AiBriefPanel({
           <p className="text-[15px] leading-relaxed text-[var(--fp-ink)]/90">
             {brief.summary}
           </p>
-          <div className="grid gap-5 md:grid-cols-3">
-            <BriefList title="From the headlines" items={brief.bullets} />
-            <BriefList title="Risks" items={brief.risks} />
-            <BriefList title="What to watch" items={brief.whatToWatch} />
-          </div>
+
+          {retail ? (
+            <>
+              <div className="grid gap-5 md:grid-cols-2">
+                <BriefList
+                  title="Probable outcomes"
+                  items={brief.scenarios ?? []}
+                  empty="Generate with an AI model for bull/base/bear paths."
+                />
+                <BriefList
+                  title="When conditions matter"
+                  items={brief.timing ?? []}
+                  empty="Timing cues appear when the model returns them."
+                />
+              </div>
+              <div className="grid gap-5 md:grid-cols-2">
+                <BriefList title="Risk analysis" items={brief.risks} />
+                <BriefList title="What to watch" items={brief.whatToWatch} />
+              </div>
+              <div className="grid gap-5 md:grid-cols-2">
+                <BriefList title="Key drivers" items={brief.bullets} />
+                <BriefList
+                  title="Before you act — check"
+                  items={brief.investorChecks ?? []}
+                />
+              </div>
+              <BriefList
+                title="Leverage trading (high risk)"
+                items={brief.leverageTrading ?? []}
+                empty="Leverage notes appear when the model returns them."
+              />
+            </>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-3">
+              <BriefList title="From the headlines" items={brief.bullets} />
+              <BriefList title="Risks" items={brief.risks} />
+              <BriefList title="What to watch" items={brief.whatToWatch} />
+            </div>
+          )}
+
           {brief.citedHeadlines?.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold tracking-wider text-[var(--fp-muted)] uppercase">
                 Cited headlines
               </h4>
               <ul className="mt-2 space-y-1 text-sm text-[var(--fp-muted)]">
-                {brief.citedHeadlines.slice(0, 6).map((h) => (
-                  <li key={h} className="truncate">
-                    · {h}
-                  </li>
-                ))}
+                {brief.citedHeadlines.slice(0, 6).map((h, i) => {
+                  const label = citeLabel(h);
+                  return (
+                    <li key={`${i}-${label}`} className="truncate">
+                      · {label}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -145,19 +186,55 @@ export function AiBriefPanel({
   );
 }
 
-function BriefList({ title, items }: { title: string; items: string[] }) {
+/** Coerce LLM quirks ({title, source}) into a display string. */
+function citeLabel(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object") {
+    const rec = value as Record<string, unknown>;
+    const title =
+      typeof rec.title === "string"
+        ? rec.title
+        : typeof rec.headline === "string"
+          ? rec.headline
+          : null;
+    const source = typeof rec.source === "string" ? rec.source : null;
+    if (title && source) return `${source}: ${title}`;
+    if (title) return title;
+  }
+  return String(value ?? "");
+}
+
+function BriefList({
+  title,
+  items,
+  empty,
+}: {
+  title: string;
+  items: string[];
+  empty?: string;
+}) {
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
   return (
     <div>
       <h4 className="text-xs font-semibold tracking-wider text-[var(--fp-muted)] uppercase">
         {title}
       </h4>
-      <ul className="mt-2 space-y-2 text-sm text-[var(--fp-ink)]">
-        {items.map((item) => (
-          <li key={item} className="leading-snug">
-            {item}
-          </li>
-        ))}
-      </ul>
+      {list.length === 0 ? (
+        <p className="mt-2 text-sm text-[var(--fp-muted)]">
+          {empty ?? "—"}
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-2 text-sm text-[var(--fp-ink)]">
+          {list.map((item, i) => {
+            const label = citeLabel(item);
+            return (
+              <li key={`${i}-${label}`} className="leading-snug">
+                {label}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

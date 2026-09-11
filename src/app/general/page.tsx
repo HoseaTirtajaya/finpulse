@@ -1,19 +1,23 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { AiBriefPanel } from "@/components/ai-brief-panel";
 import { NewsCard } from "@/components/news-card";
 import { getCachedNews } from "@/lib/cache";
+import type { MarketFilter } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const instant = false;
 
 type Props = {
-  searchParams: Promise<{ category?: string; q?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; market?: string }>;
 };
 
 export default async function GeneralPage({ searchParams }: Props) {
+  await connection();
   const params = await searchParams;
   const category = params.category || "all";
   const q = params.q?.trim() || undefined;
-  const news = await getCachedNews({ scope: "general", category, q });
+  const market = (params.market as MarketFilter) || "world";
+  const news = await getCachedNews({ scope: "general", category, q, market });
 
   return (
     <main className="relative flex-1">
@@ -55,7 +59,9 @@ export default async function GeneralPage({ searchParams }: Props) {
           </div>
           {news.items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--fp-line)] bg-white/40 px-6 py-14 text-center text-sm text-[var(--fp-muted)]">
-              No headlines matched. Try another category or clear search.
+              {news.emptyStore
+                ? "Awaiting first ingest — run npm run ingest or wait for cron."
+                : "No headlines matched. Try another category or clear search."}
             </div>
           ) : (
             <div className="rounded-xl border border-[var(--fp-line)] bg-white/45 px-4 md:px-6">

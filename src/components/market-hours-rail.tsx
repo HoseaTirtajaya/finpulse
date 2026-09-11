@@ -1,3 +1,5 @@
+"use client";
+
 import { getMarketHours } from "@/lib/market-hours";
 import { cn } from "@/lib/utils";
 

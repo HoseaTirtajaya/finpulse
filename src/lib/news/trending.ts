@@ -1,7 +1,8 @@
-import type { NewsItem, TrendCluster } from "@/lib/types";
+import type { NewsItem, TrendCluster, TrendClusterLanes } from "@/lib/types";
 import { jaccard, significantTokens } from "@/lib/news/sources/shared";
 
-const CLUSTER_THRESHOLD = 0.35;
+const CLUSTER_THRESHOLD = 0.28;
+const MIN_SOURCE_COUNT = 2;
 
 function recencyWeight(publishedAt: string, now: number): number {
   const ageHours =
@@ -12,14 +13,20 @@ function recencyWeight(publishedAt: string, now: number): number {
   return 0.3;
 }
 
+function isIndonesiaItem(item: NewsItem): boolean {
+  if (item.market === "ID") return true;
+  if (item.market === "US" || item.market === "global") return false;
+  return item.language === "id";
+}
+
 /**
- * Cluster near-duplicate headlines across outlets and rank by
- * unique-source count × recency (mention velocity proxy).
+ * Cluster near-duplicate headlines within one region and rank by
+ * unique-source count × recency. Requires 2+ outlets to qualify as trending.
+ * Seed tokens stay fixed — new titles are compared to the seed only (no bag drift).
  */
-export function buildTrendClusters(items: NewsItem[]): TrendCluster[] {
-  const now = Date.now();
+function clusterLane(items: NewsItem[], now: number): TrendCluster[] {
   const clusters: {
-    tokens: Set<string>;
+    seedTokens: Set<string>;
     members: NewsItem[];
   }[] = [];
 
@@ -30,7 +37,7 @@ export function buildTrendClusters(items: NewsItem[]): TrendCluster[] {
     let bestIdx = -1;
     let bestScore = 0;
     for (let i = 0; i < clusters.length; i++) {
-      const score = jaccard(tokens, clusters[i].tokens);
+      const score = jaccard(tokens, clusters[i].seedTokens);
       if (score > bestScore) {
         bestScore = score;
         bestIdx = i;
@@ -39,9 +46,8 @@ export function buildTrendClusters(items: NewsItem[]): TrendCluster[] {
 
     if (bestIdx >= 0 && bestScore >= CLUSTER_THRESHOLD) {
       clusters[bestIdx].members.push(item);
-      for (const t of tokens) clusters[bestIdx].tokens.add(t);
     } else {
-      clusters.push({ tokens, members: [item] });
+      clusters.push({ seedTokens: tokens, members: [item] });
     }
   }
 
@@ -73,7 +79,7 @@ export function buildTrendClusters(items: NewsItem[]): TrendCluster[] {
         mentionCount: c.members.length,
       } satisfies TrendCluster;
     })
-    .filter((c) => c.sourceCount >= 1 && c.mentionCount >= 1)
+    .filter((c) => c.sourceCount >= MIN_SOURCE_COUNT)
     .sort(
       (a, b) =>
         b.score - a.score ||
@@ -81,6 +87,29 @@ export function buildTrendClusters(items: NewsItem[]): TrendCluster[] {
         b.mentionCount - a.mentionCount,
     )
     .slice(0, 20);
+}
+
+/**
+ * Partition into World vs Indonesia lanes, cluster independently.
+ * Never ranks the two regions against each other.
+ * Pass `nowMs` from the request path so builds do not call Date.now() at prerender.
+ */
+export function buildTrendClusters(
+  items: NewsItem[],
+  nowMs: number,
+): TrendClusterLanes {
+  const world: NewsItem[] = [];
+  const indonesia: NewsItem[] = [];
+
+  for (const item of items) {
+    if (isIndonesiaItem(item)) indonesia.push(item);
+    else world.push(item);
+  }
+
+  return {
+    world: clusterLane(world, nowMs),
+    indonesia: clusterLane(indonesia, nowMs),
+  };
 }
 
 function slugish(title: string): string {

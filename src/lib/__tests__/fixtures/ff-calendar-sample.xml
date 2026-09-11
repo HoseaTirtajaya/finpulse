@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<weeklyevents>
+  <event>
+    <title>CPI m/m</title>
+    <country>USD</country>
+    <date><![CDATA[09-12-2026]]></date>
+    <time><![CDATA[8:30am]]></time>
+    <impact>High</impact>
+    <forecast>0.2%</forecast>
+    <previous>0.1%</previous>
+    <actual></actual>
+  </event>
+  <event>
+    <title>Unemployment Rate</title>
+    <country>AUD</country>
+    <date><![CDATA[09-11-2026]]></date>
+    <time><![CDATA[All Day]]></time>
+    <impact>Medium</impact>
+    <forecast>4.1%</forecast>
+    <previous>4.0%</previous>
+    <actual></actual>
+  </event>
+</weeklyevents>

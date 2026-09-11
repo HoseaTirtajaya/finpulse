@@ -1,4 +1,5 @@
 import { getInstrument } from "@/lib/instruments";
+import { fetchWithRetry, mapConcurrent } from "@/lib/market/http";
 import type { MarketDataProvider } from "@/lib/market/provider";
 import type { Candle, Quote } from "@/lib/types";
 
@@ -35,27 +36,10 @@ function resolveYahooSymbol(symbol: string): string {
   return encodeURIComponent(symbol);
 }
 
-async function fetchChart(
+function quoteFromChart(
   symbol: string,
-  range: string,
-  interval: string,
-): Promise<YahooChartResponse | null> {
-  const yahoo = resolveYahooSymbol(symbol);
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahoo}?interval=${interval}&range=${range}`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "FinPulse/0.3 (research; +localhost)",
-      Accept: "application/json",
-    },
-    next: { revalidate: range === "5d" ? 60 : 300 },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) return null;
-  return (await res.json()) as YahooChartResponse;
-}
-
-async function fetchYahooQuote(symbol: string): Promise<Quote | null> {
-  const data = await fetchChart(symbol, "5d", "1d");
+  data: YahooChartResponse,
+): Quote | null {
   const result = data?.chart?.result?.[0];
   const meta = result?.meta;
   if (!meta?.regularMarketPrice) return null;
@@ -83,11 +67,7 @@ async function fetchYahooQuote(symbol: string): Promise<Quote | null> {
   };
 }
 
-async function fetchYahooCandles(
-  symbol: string,
-  range = "1y",
-): Promise<Candle[]> {
-  const data = await fetchChart(symbol, range, "1d");
+function candlesFromChart(data: YahooChartResponse): Candle[] {
   const result = data?.chart?.result?.[0];
   if (!result?.timestamp || !result.indicators?.quote?.[0]) return [];
 
@@ -108,24 +88,76 @@ async function fetchYahooCandles(
   return candles;
 }
 
+async function fetchChart(
+  symbol: string,
+  range: string,
+  interval: string,
+): Promise<YahooChartResponse | null> {
+  const yahoo = resolveYahooSymbol(symbol);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahoo}?interval=${interval}&range=${range}`;
+  const res = await fetchWithRetry(
+    url,
+    {
+      headers: {
+        "User-Agent": "FinPulse/0.4 (research; +localhost)",
+        Accept: "application/json",
+      },
+      next: { revalidate: range === "5d" ? 60 : 300 },
+    },
+    { timeoutMs: 8000, concurrencyKey: `yahoo:${yahoo}:${range}:${interval}` },
+  );
+  if (!res) return null;
+  return (await res.json()) as YahooChartResponse;
+}
+
+/**
+ * One chart call yields both quote meta and candle series.
+ * Prefer range=1y so MA/range scoring and live price share one request.
+ */
+async function fetchYahooChartBundle(
+  symbol: string,
+  range = "1y",
+): Promise<{ quote: Quote | null; candles: Candle[] }> {
+  const data = await fetchChart(symbol, range, "1d");
+  if (!data) return { quote: null, candles: [] };
+  return {
+    quote: quoteFromChart(symbol, data),
+    candles: candlesFromChart(data),
+  };
+}
+
+async function fetchYahooQuote(symbol: string): Promise<Quote | null> {
+  // 5d is enough for a live quote and cheaper than 1y when only price is needed.
+  const { quote } = await fetchYahooChartBundle(symbol, "5d");
+  return quote;
+}
+
+async function fetchYahooCandles(
+  symbol: string,
+  range = "1y",
+): Promise<Candle[]> {
+  const { candles } = await fetchYahooChartBundle(symbol, range);
+  return candles;
+}
+
 export const yahooProvider: MarketDataProvider = {
   id: "yahoo",
   async getQuotes(symbols: string[]): Promise<Quote[]> {
     const unique = Array.from(
       new Set(symbols.map((s) => s.trim()).filter(Boolean)),
     );
-    const settled = await Promise.allSettled(
-      unique.map(async (symbol) => {
+    const results = await mapConcurrent(
+      unique,
+      async (symbol) => {
         try {
           return await fetchYahooQuote(symbol);
         } catch {
           return null;
         }
-      }),
+      },
+      6,
     );
-    return settled
-      .map((r) => (r.status === "fulfilled" ? r.value : null))
-      .filter((q): q is Quote => Boolean(q));
+    return results.filter((q): q is Quote => Boolean(q));
   },
   async getCandles(symbol: string, range = "1y"): Promise<Candle[]> {
     try {
@@ -135,3 +167,5 @@ export const yahooProvider: MarketDataProvider = {
     }
   },
 };
+
+export { fetchYahooChartBundle };
