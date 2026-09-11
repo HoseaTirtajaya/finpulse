@@ -66,20 +66,25 @@ function marketSqlCondition(market: MarketFilter) {
     return or(
       eq(articles.market, "global"),
       eq(articles.market, "US"),
+      eq(articles.market, "EU"),
+      eq(articles.market, "Asia"),
       eq(sources.market, "global"),
       eq(sources.market, "US"),
+      eq(sources.market, "EU"),
+      eq(sources.market, "Asia"),
     );
   }
   if (market === "ID") {
     return or(eq(articles.market, "ID"), eq(sources.market, "ID"));
   }
   if (market === "US") {
-    return or(
-      eq(articles.market, "US"),
-      eq(articles.market, "global"),
-      eq(sources.market, "US"),
-      eq(sources.market, "global"),
-    );
+    return or(eq(articles.market, "US"), eq(sources.market, "US"));
+  }
+  if (market === "EU") {
+    return or(eq(articles.market, "EU"), eq(sources.market, "EU"));
+  }
+  if (market === "Asia") {
+    return or(eq(articles.market, "Asia"), eq(sources.market, "Asia"));
   }
   return undefined;
 }

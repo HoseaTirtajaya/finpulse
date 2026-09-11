@@ -1,9 +1,9 @@
 export type NewsScope = "finance" | "general" | "trending";
 
-/** Finance: all | US | ID. General: all | world | ID. */
-export type MarketFilter = "all" | "US" | "ID" | "world";
+/** Finance: all | US | EU | Asia | ID. General: all | world | ID. */
+export type MarketFilter = "all" | "US" | "EU" | "Asia" | "ID" | "world";
 
-export type FeedMarket = "US" | "ID" | "global";
+export type FeedMarket = "US" | "EU" | "Asia" | "ID" | "global";
 
 export type FinanceCategory =
   | "markets"

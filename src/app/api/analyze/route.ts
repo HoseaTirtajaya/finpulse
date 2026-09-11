@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateBrief } from "@/lib/ai/analyze";
+import { verifyBriefPassword } from "@/lib/ai/brief-auth";
 import { getInstrument } from "@/lib/instruments";
 import { getCachedNews, getCachedQuotes } from "@/lib/cache";
 import { matchesInstrument } from "@/lib/news/match-instrument";
 import type { NewsScope } from "@/lib/types";
-
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,16 @@ export async function POST(request: NextRequest) {
       symbol?: string;
       category?: string;
       scope?: NewsScope;
+      password?: string;
     };
+
+    if (!verifyBriefPassword(body.password)) {
+      return NextResponse.json(
+        { error: "Invalid password", code: "UNAUTHORIZED" },
+        { status: 401 },
+      );
+    }
+
     const symbol = body.symbol?.trim();
     const scope = body.scope ?? "finance";
     const category = body.category || "all";
@@ -23,7 +32,6 @@ export async function POST(request: NextRequest) {
       news = await getCachedNews({ scope, category });
     }
 
-    // Prefer name/alias-matched stories for instrument briefs
     if (instrument) {
       const [finance, trending] = await Promise.all([
         getCachedNews({ scope: "finance", category: "all" }),

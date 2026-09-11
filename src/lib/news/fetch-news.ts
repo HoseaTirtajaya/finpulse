@@ -48,9 +48,11 @@ export function feedMatchesMarket(
 ): boolean {
   if (filter === "all") return true;
   const m = feedMarket ?? "global";
-  if (filter === "world") return m === "global" || m === "US";
+  if (filter === "world") return m === "global" || m === "US" || m === "EU" || m === "Asia";
   if (filter === "ID") return m === "ID";
-  if (filter === "US") return m === "US" || m === "global";
+  if (filter === "US") return m === "US";
+  if (filter === "EU") return m === "EU";
+  if (filter === "Asia") return m === "Asia";
   return true;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Lock, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { AiBrief, NewsScope } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ const stanceClass: Record<AiBrief["stance"], string> = {
   neutral: "bg-slate-100 text-slate-800",
   mixed: "bg-sky-100 text-sky-950",
 };
+
+const BRIEF_PW_KEY = "finpulse-brief-pw";
 
 export function AiBriefPanel({
   symbol,
@@ -25,21 +27,56 @@ export function AiBriefPanel({
   const [brief, setBrief] = useState<AiBrief | null>(initialBrief ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(BRIEF_PW_KEY);
+      if (saved) setPassword(saved);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   async function run() {
+    if (!password.trim()) {
+      setShowPassword(true);
+      setError("Enter the brief password to generate.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, scope }),
+        body: JSON.stringify({ symbol, scope, password }),
       });
+      if (res.status === 401) {
+        setShowPassword(true);
+        try {
+          sessionStorage.removeItem(BRIEF_PW_KEY);
+        } catch {
+          /* ignore */
+        }
+        throw new Error("Wrong password");
+      }
       if (!res.ok) throw new Error("Brief failed");
       const data = (await res.json()) as { brief: AiBrief };
+      try {
+        sessionStorage.setItem(BRIEF_PW_KEY, password);
+      } catch {
+        /* ignore */
+      }
       setBrief(data.brief);
-    } catch {
-      setError("Could not generate a brief. Try again in a moment.");
+      setShowPassword(false);
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message === "Wrong password"
+          ? "Wrong password. Try again."
+          : "Could not generate a brief. Try again in a moment.",
+      );
     } finally {
       setLoading(false);
     }
@@ -67,20 +104,57 @@ export function AiBriefPanel({
           </h2>
           <p className="mt-1 max-w-lg text-sm text-[var(--fp-muted)]">
             {retail
-              ? "Generates probable outcomes, timing conditions, risk analysis, and pre-trade checks from matched headlines — research only, not a buy/sell call."
-              : "Click generate to synthesize stance, risks, and what to watch. Heuristic fallback; Gemini/OpenAI only on demand."}
+              ? "Generates probable outcomes, timing conditions, risk analysis, and pre-trade checks from matched headlines — research only, not a buy/sell call. Password required."
+              : "Password-gated generate. Synthesizes stance, risks, and what to watch on demand."}
           </p>
         </div>
         <button
           type="button"
-          onClick={() => void run()}
+          onClick={() => {
+            if (!password.trim()) {
+              setShowPassword(true);
+              setError("Enter the brief password to generate.");
+              return;
+            }
+            void run();
+          }}
           disabled={loading}
           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--fp-ink)] px-3 text-sm font-medium text-[var(--fp-paper)] transition hover:bg-[var(--fp-accent)] disabled:pointer-events-none disabled:opacity-50"
         >
+          <Lock className="size-3.5 opacity-80" />
           <Sparkles className="size-4" />
           {loading ? "Synthesizing…" : brief ? "Refresh brief" : "Generate brief"}
         </button>
       </div>
+
+      {showPassword && (
+        <div className="mt-4 flex flex-wrap items-end gap-2 rounded-lg border border-[var(--fp-line)] bg-white/70 p-3">
+          <label className="min-w-[200px] flex-1">
+            <span className="text-xs font-semibold tracking-wider text-[var(--fp-muted)] uppercase">
+              Brief password
+            </span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void run();
+              }}
+              placeholder="Required to generate"
+              className="mt-1 w-full rounded-md border border-[var(--fp-line)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--fp-accent)]"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void run()}
+            disabled={loading || !password.trim()}
+            className="inline-flex h-9 items-center rounded-md bg-[var(--fp-accent)] px-3 text-sm font-medium text-white disabled:opacity-50"
+          >
+            Unlock & generate
+          </button>
+        </div>
+      )}
 
       {error && (
         <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -91,8 +165,8 @@ export function AiBriefPanel({
       {!brief && !loading && !error && (
         <p className="mt-6 text-sm text-[var(--fp-muted)]">
           {retail
-            ? "No brief yet. Generate one for bull/base/bear paths, when conditions favor patience vs engagement, and a risk checklist."
-            : "No brief yet. Generate one to see a structured read of the latest coverage."}
+            ? "No brief yet. Enter the password and generate for bull/base/bear paths, timing, and a risk checklist."
+            : "No brief yet. Enter the password to generate a structured read of the latest coverage."}
         </p>
       )}
 
@@ -186,7 +260,6 @@ export function AiBriefPanel({
   );
 }
 
-/** Coerce LLM quirks ({title, source}) into a display string. */
 function citeLabel(value: unknown): string {
   if (typeof value === "string") return value;
   if (value && typeof value === "object") {
@@ -220,9 +293,7 @@ function BriefList({
         {title}
       </h4>
       {list.length === 0 ? (
-        <p className="mt-2 text-sm text-[var(--fp-muted)]">
-          {empty ?? "—"}
-        </p>
+        <p className="mt-2 text-sm text-[var(--fp-muted)]">{empty ?? "—"}</p>
       ) : (
         <ul className="mt-2 space-y-2 text-sm text-[var(--fp-ink)]">
           {list.map((item, i) => {

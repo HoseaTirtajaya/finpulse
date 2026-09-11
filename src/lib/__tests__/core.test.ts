@@ -203,9 +203,11 @@ describe("fx convert", () => {
 });
 
 describe("feedMatchesMarket", () => {
-  it("world filter keeps global and US, drops ID", () => {
+  it("world filter keeps global and regional desks, drops ID", () => {
     expect(feedMatchesMarket("global", "world")).toBe(true);
     expect(feedMatchesMarket("US", "world")).toBe(true);
+    expect(feedMatchesMarket("EU", "world")).toBe(true);
+    expect(feedMatchesMarket("Asia", "world")).toBe(true);
     expect(feedMatchesMarket("ID", "world")).toBe(false);
   });
 
@@ -215,9 +217,17 @@ describe("feedMatchesMarket", () => {
     expect(feedMatchesMarket("global", "ID")).toBe(false);
   });
 
+  it("EU and Asia are distinct from US", () => {
+    expect(feedMatchesMarket("EU", "EU")).toBe(true);
+    expect(feedMatchesMarket("Asia", "Asia")).toBe(true);
+    expect(feedMatchesMarket("US", "EU")).toBe(false);
+    expect(feedMatchesMarket("global", "US")).toBe(false);
+  });
+
   it("all passes everything", () => {
     expect(feedMatchesMarket("ID", "all")).toBe(true);
     expect(feedMatchesMarket("US", "all")).toBe(true);
+    expect(feedMatchesMarket("EU", "all")).toBe(true);
   });
 });
 

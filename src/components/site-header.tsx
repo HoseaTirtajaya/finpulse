@@ -35,6 +35,8 @@ const GENERAL_CATEGORIES = [
 const FINANCE_MARKETS: { id: MarketFilter; label: string }[] = [
   { id: "all", label: "All markets" },
   { id: "US", label: "US" },
+  { id: "EU", label: "Europe" },
+  { id: "Asia", label: "Asia" },
   { id: "ID", label: "IDX" },
 ];
 
