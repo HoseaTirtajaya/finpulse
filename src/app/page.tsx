@@ -76,66 +76,18 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
       </section>
 
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 md:grid-cols-[minmax(0,1fr)_280px] md:px-6 lg:gap-14">
-        <div className="min-w-0 space-y-10">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 md:grid-cols-[minmax(0,1fr)_300px] md:items-start md:px-6 lg:gap-14">
+        {/* Watchlist first; tools sit beside the long feed on desktop */}
+        <div className="min-w-0 md:col-start-1">
           <WatchlistBoard />
-
-          <section id="brief">
-            <AiBriefPanel scope="finance" />
-          </section>
-
-          <section id="feed">
-            <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--fp-ink)]">
-                  Headline feed
-                </h2>
-                <p className="mt-1 text-sm text-[var(--fp-muted)]">
-                  {news.liveSources.length > 0
-                    ? `Live from ${news.liveSources.join(", ")}.`
-                    : "No live sources responded."}
-                  {news.failedSources.length > 0
-                    ? ` Failed: ${news.failedSources.join(", ")}.`
-                    : ""}
-                  {" · "}
-                  {news.items.length} stories
-                  {q ? ` matching “${q}”` : ""}
-                </p>
-              </div>
-              <Link
-                href="/"
-                className="text-sm text-[var(--fp-accent)] hover:underline"
-              >
-                Reset filters
-              </Link>
-            </div>
-
-            {news.items.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[var(--fp-line)] bg-white/40 px-6 py-14 text-center">
-                <p className="font-[family-name:var(--font-display)] text-xl text-[var(--fp-ink)]">
-                  {news.emptyStore
-                    ? "Awaiting first ingest"
-                    : "No headlines available"}
-                </p>
-                <p className="mt-2 text-sm text-[var(--fp-muted)]">
-                  {news.emptyStore
-                    ? "Database is connected but empty. Run npm run ingest (or wait for cron)."
-                    : news.failedSources.length > 0
-                      ? `Sources unreachable: ${news.failedSources.join(", ")}.`
-                      : "Try another category or clear the search."}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-[var(--fp-line)] bg-white/45 px-4 md:px-6">
-                {news.items.map((item, index) => (
-                  <NewsCard key={item.id} item={item} index={index} />
-                ))}
-              </div>
-            )}
-          </section>
         </div>
 
-        <aside className="space-y-6 md:sticky md:top-24 md:self-start">
+        {/*
+          Sticky viewport-height rail: scroll market hours / converter / calendar
+          inside the rail without paging through the entire headline feed.
+          On mobile, tools appear before the long feed.
+        */}
+        <aside className="desk-rail space-y-6 md:col-start-2 md:row-span-3 md:sticky md:top-24 md:max-h-[calc(100dvh-6.5rem)] md:self-start md:overflow-y-auto md:overscroll-y-contain md:pr-1">
           <MarketHoursRail />
           <CurrencyConverter />
           <MacroCalendarRail events={macroEvents} />
@@ -164,6 +116,60 @@ export default async function Home({ searchParams }: HomeProps) {
             </Link>
           </div>
         </aside>
+
+        <section id="brief" className="min-w-0 md:col-start-1">
+          <AiBriefPanel scope="finance" />
+        </section>
+
+        <section id="feed" className="min-w-0 md:col-start-1">
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--fp-ink)]">
+                Headline feed
+              </h2>
+              <p className="mt-1 text-sm text-[var(--fp-muted)]">
+                {news.liveSources.length > 0
+                  ? `Live from ${news.liveSources.join(", ")}.`
+                  : "No live sources responded."}
+                {news.failedSources.length > 0
+                  ? ` Failed: ${news.failedSources.join(", ")}.`
+                  : ""}
+                {" · "}
+                {news.items.length} stories
+                {q ? ` matching “${q}”` : ""}
+              </p>
+            </div>
+            <Link
+              href="/"
+              className="text-sm text-[var(--fp-accent)] hover:underline"
+            >
+              Reset filters
+            </Link>
+          </div>
+
+          {news.items.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--fp-line)] bg-white/40 px-6 py-14 text-center">
+              <p className="font-[family-name:var(--font-display)] text-xl text-[var(--fp-ink)]">
+                {news.emptyStore
+                  ? "Awaiting first ingest"
+                  : "No headlines available"}
+              </p>
+              <p className="mt-2 text-sm text-[var(--fp-muted)]">
+                {news.emptyStore
+                  ? "Database is connected but empty. Run npm run ingest (or wait for cron)."
+                  : news.failedSources.length > 0
+                    ? `Sources unreachable: ${news.failedSources.join(", ")}.`
+                    : "Try another category or clear the search."}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-[var(--fp-line)] bg-white/45 px-4 md:px-6">
+              {news.items.map((item, index) => (
+                <NewsCard key={item.id} item={item} index={index} />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

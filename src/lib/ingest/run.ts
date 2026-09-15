@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { articles, ingestRuns } from "@/lib/db/schema";
 import { linkArticleInstruments } from "@/lib/ingest/article-links";
 import { ingestDailyBars } from "@/lib/ingest/daily-bars";
-import { ingestForexFactory } from "@/lib/ingest/forex-factory";
+import { ingestFinnhubCalendar } from "@/lib/ingest/finnhub-calendar";
 import { ingestFundamentals } from "@/lib/ingest/fundamentals";
 import { ingestIdxAnnouncements } from "@/lib/ingest/idx";
 import { ingestRss } from "@/lib/ingest/rss";
@@ -56,7 +56,7 @@ export async function runIngest(options?: {
 
   const parts = await Promise.all([
     ingestRss(db),
-    ingestForexFactory(db),
+    ingestFinnhubCalendar(db),
     ingestIdxAnnouncements(db),
   ]);
 

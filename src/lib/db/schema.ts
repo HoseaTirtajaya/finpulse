@@ -22,7 +22,7 @@ export const sources = pgTable("sources", {
   scope: text("scope").notNull(), // finance | general | macro
   market: text("market"), // US | ID | global
   language: text("language"), // en | id
-  kind: text("kind").notNull(), // rss | ff_calendar | idx_announcement
+  kind: text("kind").notNull(), // rss | economic_calendar | idx_announcement
   enabled: boolean("enabled").notNull().default(true),
   lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
   category: text("category"),
@@ -74,6 +74,10 @@ export const macroEvents = pgTable(
     actual: text("actual"),
     forecast: text("forecast"),
     previous: text("previous"),
+    sector: text("sector"),
+    eventType: text("event_type"),
+    sourceUrl: text("source_url"),
+    source: text("source").notNull().default("finnhub"),
     ingestedAt: timestamp("ingested_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -220,8 +224,80 @@ export const aiBriefs = pgTable(
   ],
 );
 
+/** On-demand AI instrument reviews (price + macro calendar context). */
+export const instrumentReviews = pgTable(
+  "instrument_reviews",
+  {
+    id: text("id").primaryKey(),
+    instrument: text("instrument").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    stance: text("stance"), // bullish | bearish | neutral
+    confidence: text("confidence"), // low | medium | high
+    summary: text("summary").notNull(),
+    contextEventIds: jsonb("context_event_ids").$type<string[]>(),
+    model: text("model"),
+    payload: jsonb("payload"),
+  },
+  (t) => [
+    index("instrument_reviews_instrument_generated_idx").on(
+      t.instrument,
+      t.generatedAt,
+    ),
+  ],
+);
+
+/** On-demand AI analysis of a calendar day's macro events. */
+export const dateImpacts = pgTable(
+  "date_impacts",
+  {
+    id: text("id").primaryKey(),
+    eventDate: text("event_date").notNull(), // YYYY-MM-DD UTC
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    marketLean: text("market_lean"), // risk_on | risk_off | mixed | unclear
+    confidence: text("confidence"), // low | medium | high
+    summary: text("summary").notNull(),
+    contextEventIds: jsonb("context_event_ids").$type<string[]>(),
+    model: text("model"),
+    payload: jsonb("payload"),
+  },
+  (t) => [
+    index("date_impacts_event_date_generated_idx").on(
+      t.eventDate,
+      t.generatedAt,
+    ),
+  ],
+);
+
+/** Per-event AI briefs for macro calendar rows. */
+export const eventBriefs = pgTable(
+  "event_briefs",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    summary: text("summary").notNull(),
+    keyPoints: jsonb("key_points").$type<string[]>(),
+    marketNotes: jsonb("market_notes").$type<string[]>(),
+    model: text("model"),
+    payload: jsonb("payload"),
+  },
+  (t) => [
+    uniqueIndex("event_briefs_event_id_uidx").on(t.eventId),
+    index("event_briefs_generated_idx").on(t.generatedAt),
+  ],
+);
+
 export type SourceRow = typeof sources.$inferSelect;
 export type ArticleRow = typeof articles.$inferSelect;
 export type MacroEventRow = typeof macroEvents.$inferSelect;
 export type InstrumentRow = typeof instruments.$inferSelect;
 export type DailyBarRow = typeof dailyBars.$inferSelect;
+export type InstrumentReviewRow = typeof instrumentReviews.$inferSelect;
+export type DateImpactRow = typeof dateImpacts.$inferSelect;
+export type EventBriefRow = typeof eventBriefs.$inferSelect;

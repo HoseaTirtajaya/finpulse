@@ -389,6 +389,9 @@ describe("recommendation dynamics", () => {
         actual: null,
         forecast: null,
         previous: null,
+        sector: null,
+        eventType: null,
+        sourceUrl: null,
       },
     ]);
     expect(boost).toBe(6);
@@ -402,6 +405,9 @@ describe("recommendation dynamics", () => {
         actual: null,
         forecast: null,
         previous: null,
+        sector: null,
+        eventType: null,
+        sourceUrl: null,
       },
     ]);
     expect(asia.boost).toBe(6);

@@ -100,7 +100,7 @@ function mentionVelocity(
   return { recent, prior, bonus };
 }
 
-/** Map FF calendar country codes to recommendation segments. */
+/** Map calendar country/currency codes to recommendation segments. */
 function macroRegionsForCountry(country: string): Set<RecMarketSegment> {
   const c = country.trim().toUpperCase();
   const regions = new Set<RecMarketSegment>();

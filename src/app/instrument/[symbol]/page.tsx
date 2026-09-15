@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { AiBriefPanel } from "@/components/ai-brief-panel";
+import { InstrumentReviewPanel } from "@/components/instrument-review-panel";
 import { NewsCard } from "@/components/news-card";
 import { WatchlistToggle } from "@/components/watchlist-toggle";
 import {
@@ -12,6 +13,7 @@ import {
   INSTRUMENTS,
 } from "@/lib/instruments";
 import { getCachedNews, getCachedQuotes } from "@/lib/cache";
+import { getUpcomingEventsForInstrument } from "@/lib/macro/events-for-instrument";
 import { matchesInstrument } from "@/lib/news/match-instrument";
 import { toneScoreFromItems } from "@/lib/sentiment";
 import { cn } from "@/lib/utils";
@@ -46,11 +48,13 @@ export default async function InstrumentPage({ params }: PageProps) {
   const instrument = getInstrument(symbol);
   if (!instrument) notFound();
 
-  const [financeNews, trendingNews, quotes] = await Promise.all([
-    getCachedNews({ scope: "finance", category: "all" }),
-    getCachedNews({ scope: "trending" }),
-    getCachedQuotes(instrument.symbol),
-  ]);
+  const [financeNews, trendingNews, quotes, upcomingEvents] =
+    await Promise.all([
+      getCachedNews({ scope: "finance", category: "all" }),
+      getCachedNews({ scope: "trending" }),
+      getCachedQuotes(instrument.symbol),
+      getUpcomingEventsForInstrument(instrument, { days: 7 }),
+    ]);
 
   const seen = new Set<string>();
   const related = [...financeNews.items, ...trendingNews.items].filter(
@@ -242,6 +246,10 @@ export default async function InstrumentPage({ params }: PageProps) {
           )}
         </section>
 
+        <InstrumentReviewPanel
+          symbol={instrument.symbol}
+          upcomingEvents={upcomingEvents}
+        />
         <AiBriefPanel symbol={instrument.symbol} scope="finance" />
       </div>
     </main>

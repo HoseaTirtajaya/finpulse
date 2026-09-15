@@ -1,6 +1,11 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { fetchNews } from "@/lib/news/query-news";
 import { queryMacroEvents } from "@/lib/news/query-news";
+import {
+  getMacroEventDayMarkers,
+  queryMacroEventsForDay,
+  queryMacroEventsForMonth,
+} from "@/lib/macro/query-calendar";
 import { fetchCandles, fetchCryptoMarkets, fetchQuotes } from "@/lib/market";
 import type { MarketFilter, NewsScope } from "@/lib/types";
 
@@ -26,6 +31,24 @@ export async function getCachedMacroEvents() {
     minImpact: "medium",
     limit: 10,
   });
+}
+
+export async function getCachedMacroEventsForDay(isoDate: string) {
+  "use cache";
+  cacheLife("macro");
+  cacheTag("macro");
+  return queryMacroEventsForDay(isoDate, { minImpact: "low", limit: 200 });
+}
+
+export async function getCachedMacroMonth(year: number, month: number) {
+  "use cache";
+  cacheLife("macro");
+  cacheTag("macro");
+  const [markers, events] = await Promise.all([
+    getMacroEventDayMarkers(year, month),
+    queryMacroEventsForMonth(year, month),
+  ]);
+  return { markers, events };
 }
 
 export async function getCachedQuotes(symbolsKey: string) {

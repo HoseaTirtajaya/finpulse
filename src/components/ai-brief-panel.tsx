@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Lock, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AI_PASSWORD_SESSION_KEY } from "@/lib/ai/ai-password";
 import type { AiBrief, NewsScope } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -12,8 +13,6 @@ const stanceClass: Record<AiBrief["stance"], string> = {
   neutral: "bg-slate-100 text-slate-800",
   mixed: "bg-sky-100 text-sky-950",
 };
-
-const BRIEF_PW_KEY = "finpulse-brief-pw";
 
 export function AiBriefPanel({
   symbol,
@@ -32,7 +31,7 @@ export function AiBriefPanel({
 
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem(BRIEF_PW_KEY);
+      const saved = sessionStorage.getItem(AI_PASSWORD_SESSION_KEY);
       if (saved) setPassword(saved);
     } catch {
       /* ignore */
@@ -56,7 +55,7 @@ export function AiBriefPanel({
       if (res.status === 401) {
         setShowPassword(true);
         try {
-          sessionStorage.removeItem(BRIEF_PW_KEY);
+          sessionStorage.removeItem(AI_PASSWORD_SESSION_KEY);
         } catch {
           /* ignore */
         }
@@ -65,7 +64,7 @@ export function AiBriefPanel({
       if (!res.ok) throw new Error("Brief failed");
       const data = (await res.json()) as { brief: AiBrief };
       try {
-        sessionStorage.setItem(BRIEF_PW_KEY, password);
+        sessionStorage.setItem(AI_PASSWORD_SESSION_KEY, password);
       } catch {
         /* ignore */
       }

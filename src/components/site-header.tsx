@@ -137,6 +137,15 @@ export function SiteHeader() {
           >
             Crypto
           </Link>
+          <Link
+            href="/calendar"
+            className={cn(
+              "transition hover:text-[var(--fp-accent)]",
+              pathname.startsWith("/calendar") && "text-[var(--fp-accent)]",
+            )}
+          >
+            Calendar
+          </Link>
           {scope === "finance" && (
             <>
               <Link

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "mql5:1",
+    "time": "2026-09-16T12:30:00Z",
+    "currency": "USD",
+    "countryCode": "US",
+    "name": "CPI m/m",
+    "importance": "high",
+    "unit": "percent",
+    "actual": null,
+    "forecast": 0.2,
+    "previous": 0.1,
+    "type": "indicator"
+  },
+  {
+    "id": "mql5:2",
+    "time": "2026-09-17T09:00:00Z",
+    "currency": "EUR",
+    "countryCode": "EU",
+    "name": "CPI Flash Estimate y/y",
+    "importance": "medium",
+    "unit": "percent",
+    "actual": 3.1,
+    "forecast": 3.0,
+    "previous": 2.9,
+    "type": "indicator",
+    "sector": "prices",
+    "sourceUrl": "https://ec.europa.eu/"
+  }
+]

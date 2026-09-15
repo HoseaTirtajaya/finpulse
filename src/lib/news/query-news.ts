@@ -28,6 +28,9 @@ export type MacroEvent = {
   actual: string | null;
   forecast: string | null;
   previous: string | null;
+  sector: string | null;
+  eventType: string | null;
+  sourceUrl: string | null;
 };
 
 function rowToNewsItem(
@@ -327,6 +330,9 @@ export async function queryMacroEvents(options?: {
         actual: macroEvents.actual,
         forecast: macroEvents.forecast,
         previous: macroEvents.previous,
+        sector: macroEvents.sector,
+        eventType: macroEvents.eventType,
+        sourceUrl: macroEvents.sourceUrl,
       })
       .from(macroEvents)
       .where(
@@ -355,6 +361,9 @@ function mapMacro(r: {
   actual: string | null;
   forecast: string | null;
   previous: string | null;
+  sector?: string | null;
+  eventType?: string | null;
+  sourceUrl?: string | null;
 }): MacroEvent {
   return {
     id: r.id,
@@ -365,6 +374,9 @@ function mapMacro(r: {
     actual: r.actual,
     forecast: r.forecast,
     previous: r.previous,
+    sector: r.sector ?? null,
+    eventType: r.eventType ?? null,
+    sourceUrl: r.sourceUrl ?? null,
   };
 }
 

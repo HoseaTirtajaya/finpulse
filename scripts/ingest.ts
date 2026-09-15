@@ -2,7 +2,8 @@ import "dotenv/config";
 import { config } from "dotenv";
 import { resolve } from "path";
 
-config({ path: resolve(process.cwd(), ".env.local") });
+// Prefer .env.local over .env so empty placeholders don't shadow real keys.
+config({ path: resolve(process.cwd(), ".env.local"), override: true });
 config({ path: resolve(process.cwd(), ".env") });
 
 async function main() {

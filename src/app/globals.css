@@ -153,3 +153,18 @@
   background-size: 48px 48px;
   mask-image: linear-gradient(180deg, black 30%, transparent 95%);
 }
+
+/* Desk right rail: independent scroll next to a long feed */
+.desk-rail {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--fp-muted) 45%, transparent) transparent;
+}
+
+.desk-rail::-webkit-scrollbar {
+  width: 6px;
+}
+
+.desk-rail::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--fp-muted) 40%, transparent);
+}

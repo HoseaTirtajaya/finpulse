@@ -74,7 +74,7 @@ Nav also exposes **Crypto**, **Ideas**, Watchlist, AI brief anchors.
 | Source | Table | Cadence (adapter) |
 |--------|-------|-------------------|
 | Finance / general / crypto RSS | `articles` | ~15 min |
-| Forex Factory calendar XML | `macro_events` | ~30 min |
+| Finnhub economic calendar | `macro_events` | ~30 min cadence (daily cron) |
 | IDX announcements JSON | `articles` | ~15 min |
 
 - Schema: Drizzle (`src/lib/db/schema.ts`), `npm run db:push`
@@ -120,8 +120,10 @@ npm run dev                  # http://127.0.0.1:4321
 | `AI_PROVIDER` | `gemini` (default) \| `openai` |
 | `GEMINI_API_KEY` / `OPENAI_API_KEY` | On-demand briefs |
 | `COINGECKO_API_KEY` | Optional higher CG limits |
+| `FINNHUB_API_KEY` | Economic calendar ingest (`/calendar/economic`) |
 | `DATABASE_URL` | Neon — enables ingest-backed news |
 | `CRON_SECRET` | Protects ingest cron |
+| `AI_BRIEF_PASSWORD` | Password gate for on-demand AI briefs/reviews |
 | `UPSTASH_REDIS_*` | Optional remote watchlist |
 
 ---
@@ -156,7 +158,7 @@ src/
     recommend/rank.ts  # scoring (reads daily_bars + article_instruments when present)
     ai/analyze.ts      # briefs (timeouts, header auth, Postgres brief cache)
     fx/convert.ts      # currency book + IDR board
-    ingest/            # RSS (batched), FF calendar, IDX, daily bars, fundamentals, article links
+    ingest/            # RSS (batched), Finnhub calendar, IDX, daily bars, fundamentals, article links
     db/                # Drizzle schema + client + market-data helpers
     sentiment.ts       # EN/ID lexicon tone
     cache.ts           # use cache + cacheLife wrappers
