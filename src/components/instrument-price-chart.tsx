@@ -14,7 +14,7 @@ import { formatCalendarDate } from "@/lib/macro/date-format";
 import {
   CANDLE_RANGES,
   type CandleRange,
-} from "@/lib/market/load-candles";
+} from "@/lib/market/candle-range";
 import { formatPrice } from "@/lib/instruments";
 import type { Candle, Instrument } from "@/lib/types";
 import { cn } from "@/lib/utils";

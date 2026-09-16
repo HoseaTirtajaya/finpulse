@@ -5,7 +5,7 @@ import {
   detectHasOhlc,
   isCandleRange,
   rangeToDays,
-} from "@/lib/market/load-candles";
+} from "@/lib/market/candle-range";
 
 function bar(
   date: string,
