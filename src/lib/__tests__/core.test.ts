@@ -22,6 +22,16 @@ function item(
   };
 }
 
+describe("stripHtml / decodeHtmlEntities", () => {
+  it("unwinds double-encoded ampersands", async () => {
+    const { stripHtml } = await import("@/lib/news/text");
+    expect(stripHtml("Purbaya &amp;amp; Dirjen Bea Cukai")).toBe(
+      "Purbaya & Dirjen Bea Cukai",
+    );
+    expect(stripHtml("Foo &amp; Bar")).toBe("Foo & Bar");
+  });
+});
+
 describe("extractTickers", () => {
   it("finds US and IDX tickers plus aliases", () => {
     const t = extractTickers("Nvidia and Bank Central Asia lead while IHSG rises");
@@ -61,6 +71,27 @@ describe("extractTickers", () => {
       "SOL-USD",
     );
   });
+
+  it("does not tag Cardano from Indonesian Ada headlines", () => {
+    expect(
+      extractTickers(
+        "Ada Apa RI, 239 Orang Tewas-203 Hilang Akibat Kecelakaan Kapal Laut",
+      ),
+    ).not.toContain("ADA-USD");
+    expect(
+      extractTickers("Purbaya & Dirjen Bea Cukai Bantah Ada Konflik"),
+    ).not.toContain("ADA-USD");
+  });
+
+  it("still tags Cardano from real crypto mentions", () => {
+    expect(extractTickers("Cardano breaks resistance on ETF chatter")).toContain(
+      "ADA-USD",
+    );
+    expect(extractTickers("ADA-USD rallies after upgrade")).toContain("ADA-USD");
+    expect(
+      extractTickers("$ADA jumps as crypto markets rebound overnight"),
+    ).toContain("ADA-USD");
+  });
 });
 
 describe("coingecko mapper", () => {
@@ -97,9 +128,47 @@ describe("inferFinanceCategory", () => {
       "macro",
     );
   });
+
+  it("does not call Indonesian Ada headlines crypto", () => {
+    expect(
+      inferFinanceCategory(
+        "Ada Apa RI, 239 Orang Tewas akibat kecelakaan kapal",
+        "",
+        "markets",
+      ),
+    ).not.toBe("crypto");
+  });
 });
 
 describe("matchesInstrument", () => {
+  it("rejects Indonesian Ada headlines for Cardano", async () => {
+    const { matchesInstrument } = await import("@/lib/news/match-instrument");
+    const ada = item({
+      id: "ada-fp",
+      title: "Ada Apa RI, 239 Orang Tewas-203 Hilang Akibat Kecelakaan Kapal Laut",
+      source: "Detik",
+      tickers: ["ADA-USD"],
+      scope: "finance",
+      category: "crypto",
+    });
+    expect(
+      matchesInstrument(ada, "ADA-USD", "Cardano", ["Cardano", "ADA"]),
+    ).toBe(false);
+  });
+
+  it("matches Cardano by full name", async () => {
+    const { matchesInstrument } = await import("@/lib/news/match-instrument");
+    const ok = item({
+      id: "ada-ok",
+      title: "Cardano smart contracts see rising TVL",
+      source: "X",
+      scope: "finance",
+    });
+    expect(
+      matchesInstrument(ok, "ADA-USD", "Cardano", ["Cardano", "ADA"]),
+    ).toBe(true);
+  });
+
   it("rejects generic Indonesia / Bank headlines for BBRI", async () => {
     const { matchesInstrument } = await import("@/lib/news/match-instrument");
     const stale = item({

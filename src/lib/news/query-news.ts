@@ -12,6 +12,9 @@ import {
   fetchNewsLive,
   type NewsFetchResult,
 } from "@/lib/news/fetch-news";
+import { extractTickers } from "@/lib/news/sources/shared";
+import { inferFinanceCategory } from "@/lib/news/sources/finance";
+import { decodeHtmlEntities } from "@/lib/news/text";
 import type {
   FeedMarket,
   MarketFilter,
@@ -48,15 +51,28 @@ function rowToNewsItem(
   },
   sourceName: string,
 ): NewsItem {
+  const title = decodeHtmlEntities(row.title);
+  const summary = decodeHtmlEntities(row.summary);
+  // Re-extract on read so stale false positives (Ada → ADA) disappear
+  // without waiting for a full re-ingest.
+  const tickers =
+    row.scope === "finance"
+      ? extractTickers(`${title} ${summary}`)
+      : (row.tickers ?? []);
+  const category =
+    row.scope === "finance"
+      ? inferFinanceCategory(title, summary, row.category)
+      : row.category;
+
   return {
     id: row.id,
-    title: row.title,
-    summary: row.summary,
+    title,
+    summary,
     url: row.url,
     source: sourceName,
     publishedAt: row.publishedAt.toISOString(),
-    category: row.category,
-    tickers: row.tickers ?? [],
+    category,
+    tickers,
     scope: row.scope as "finance" | "general",
     language: (row.language as "en" | "id" | undefined) ?? undefined,
     market: (row.market as FeedMarket | undefined) ?? undefined,

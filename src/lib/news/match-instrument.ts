@@ -1,3 +1,7 @@
+import {
+  AMBIGUOUS_SHORT_TICKERS,
+  ambiguousTickerAllowed,
+} from "@/lib/news/sources/shared";
 import type { NewsItem } from "@/lib/types";
 
 /** Generic tokens that appear in many unrelated headlines. */
@@ -41,7 +45,6 @@ function escapeRe(s: string): string {
 export function hasWordToken(haystack: string, needle: string): boolean {
   const token = needle.trim();
   if (token.length < 2) return false;
-  // Digits/ticker symbols like 0700.HK, 7203.T, BBRI, ^N225
   const pattern =
     /^[\d.A-Z^]+$/i.test(token) && token.length <= 12
       ? `(?<![A-Z0-9])${escapeRe(token)}(?![A-Z0-9])`
@@ -63,13 +66,19 @@ export function matchesInstrument(
   const sym = symbol.toUpperCase();
 
   // Do not trust stored tickers alone — ingest may have tagged false
-  // positives (e.g. BRI ⊂ BRICS). Require text corroboration below.
+  // positives (e.g. BRI ⊂ BRICS, Ada → ADA). Require text corroboration.
   const key = sym.replace("-USD", "").replace("^", "");
-  if (key.length >= 3 && hasWordToken(blob, key)) return true;
+  if (key.length >= 3) {
+    if (AMBIGUOUS_SHORT_TICKERS.has(key)) {
+      if (ambiguousTickerAllowed(blob, key)) return true;
+    } else if (hasWordToken(blob, key)) {
+      return true;
+    }
+  }
   if (hasWordToken(blob, symbol)) return true;
 
-  // Full official name is strongest
-  if (name.length > 8 && hasWordToken(blob, name)) return true;
+  // Full official name is strongest (Cardano, Solana, …)
+  if (name.length > 3 && hasWordToken(blob, name)) return true;
 
   // Distinctive name tokens only (skip Bank / Indonesia / Group / …)
   const nameParts = name
@@ -88,6 +97,11 @@ export function matchesInstrument(
   for (const a of aliases ?? []) {
     if (a.length < 3) continue;
     if (GENERIC_NAME_TOKENS.has(a.toUpperCase())) continue;
+    const amb = AMBIGUOUS_SHORT_TICKERS.has(a.toUpperCase());
+    if (amb) {
+      if (ambiguousTickerAllowed(blob, a)) return true;
+      continue;
+    }
     if (hasWordToken(blob, a)) return true;
   }
 

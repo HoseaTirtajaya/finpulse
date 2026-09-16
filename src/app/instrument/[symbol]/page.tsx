@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { AiBriefPanel } from "@/components/ai-brief-panel";
+import { InstrumentPriceChart } from "@/components/instrument-price-chart";
 import { InstrumentReviewPanel } from "@/components/instrument-review-panel";
 import { NewsCard } from "@/components/news-card";
 import { WatchlistToggle } from "@/components/watchlist-toggle";
@@ -13,6 +14,7 @@ import {
   INSTRUMENTS,
 } from "@/lib/instruments";
 import { getCachedNews, getCachedQuotes } from "@/lib/cache";
+import { loadCandlesForSymbol } from "@/lib/market/load-candles";
 import { getUpcomingEventsForInstrument } from "@/lib/macro/events-for-instrument";
 import { matchesInstrument } from "@/lib/news/match-instrument";
 import { toneScoreFromItems } from "@/lib/sentiment";
@@ -48,12 +50,13 @@ export default async function InstrumentPage({ params }: PageProps) {
   const instrument = getInstrument(symbol);
   if (!instrument) notFound();
 
-  const [financeNews, trendingNews, quotes, upcomingEvents] =
+  const [financeNews, trendingNews, quotes, upcomingEvents, candleBundle] =
     await Promise.all([
       getCachedNews({ scope: "finance", category: "all" }),
       getCachedNews({ scope: "trending" }),
       getCachedQuotes(instrument.symbol),
       getUpcomingEventsForInstrument(instrument, { days: 7 }),
+      loadCandlesForSymbol(instrument.symbol, "1y"),
     ]);
 
   const seen = new Set<string>();
@@ -179,6 +182,15 @@ export default async function InstrumentPage({ params }: PageProps) {
       </section>
 
       <div className="mt-8 space-y-8">
+        <InstrumentPriceChart
+          symbol={instrument.symbol}
+          currency={instrument.currency}
+          instrumentType={instrument.type}
+          initialCandles={candleBundle.candles}
+          initialRange={candleBundle.range}
+          initialHasOhlc={candleBundle.hasOhlc}
+        />
+
         {(isCrypto || related.length > 0) && (
           <section className="rounded-xl border border-[var(--fp-line)] bg-white/55 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">

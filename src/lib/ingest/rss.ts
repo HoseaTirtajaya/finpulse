@@ -17,7 +17,11 @@ import {
   GENERAL_SOURCES,
   inferGeneralCategory,
 } from "@/lib/news/sources/general";
-import { extractTickers, slugId } from "@/lib/news/sources/shared";
+import {
+  extractTickers,
+  slugId,
+} from "@/lib/news/sources/shared";
+import { stripHtml } from "@/lib/news/text";
 import type { FeedSource } from "@/lib/news/sources/finance";
 
 const RSS_CADENCE_MS = 15 * 60 * 1000;
@@ -30,13 +34,6 @@ const parser = new Parser({
     Accept: "application/rss+xml, application/xml, text/xml, */*",
   },
 });
-
-function stripHtml(input: string): string {
-  return input
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function hashRaw(input: string): string {
   return createHash("sha256").update(input).digest("hex").slice(0, 32);

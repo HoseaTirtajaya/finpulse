@@ -12,6 +12,7 @@ import {
   inferGeneralCategory,
 } from "@/lib/news/sources/general";
 import { extractTickers, slugId } from "@/lib/news/sources/shared";
+import { stripHtml } from "@/lib/news/text";
 import type { FeedSource } from "@/lib/news/sources/finance";
 
 const parser = new Parser({
@@ -33,13 +34,6 @@ export type NewsFetchResult = {
   /** Store connected but no rows yet */
   emptyStore?: boolean;
 };
-
-function stripHtml(input: string): string {
-  return input
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /** Whether a feed market matches the UI filter. */
 export function feedMatchesMarket(

@@ -270,7 +270,7 @@ const FINANCE_CATEGORY_HINTS: Record<
   RegExp
 > = {
   crypto:
-    /\b(bitcoin|crypto|ethereum|solana|ripple|cardano|dogecoin|avalanche|polkadot|chainlink|polygon|litecoin|uniswap|arbitrum|optimism|toncoin|shiba|btc|eth|sol|xrp|bnb|ada|doge|avax|dot|link|matic|trx|ton|shib|ltc|atom|uni|near|apt|icp|fil|arb|sui|digital asset|blockchain|kripto|defi|web3)\b/i,
+    /\b(bitcoin|crypto|ethereum|solana|ripple|cardano|dogecoin|avalanche|polkadot|chainlink|polygon|litecoin|uniswap|arbitrum|optimism|toncoin|shiba|btc|eth|xrp|bnb|doge|avax|matic|shib|ltc|icp|digital asset|blockchain|kripto|defi|web3)\b/i,
   macro:
     /\b(fed|inflation|cpi|gdp|treasury|rates|economy|jobs|unemployment|ecb|bi rate|inflasi|suku bunga|rupiah)\b/i,
   equities:

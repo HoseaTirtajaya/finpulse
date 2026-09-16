@@ -7,6 +7,15 @@ import {
 } from "@/lib/db/schema";
 import type { Candle, NewsItem } from "@/lib/types";
 
+/** Load up to `days` of daily bars for a single symbol. */
+export async function loadDailyBarsForSymbol(
+  symbol: string,
+  days = 280,
+): Promise<Candle[]> {
+  const map = await loadDailyBarsForSymbols([symbol], days);
+  return map.get(symbol) ?? [];
+}
+
 /** Load up to `days` of daily bars for many symbols in one query. */
 export async function loadDailyBarsForSymbols(
   symbols: string[],
