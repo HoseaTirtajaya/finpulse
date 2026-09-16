@@ -1,191 +1,265 @@
 export type MacroEventExplainer = {
+  /** Newbie-friendly title instead of jargon like "CPI y/y" */
+  simpleTitle: string;
   /** Short plain-English definition */
   whatItIs: string;
-  /** Typical financial / market relevance */
+  /** Typical financial / market relevance in everyday words */
   whyItMatters: string;
-  /** Optional “if hot/cold” cue */
+  /** Optional “if higher/lower than expected” cue */
   watchFor?: string;
 };
 
 type Rule = {
-  /** Case-insensitive substring match against event title */
   match: RegExp;
   explain: MacroEventExplainer;
 };
 
 /**
  * Instant educational blurbs for common macro releases — no LLM, no scrape.
- * First matching rule wins (order from specific → general).
+ * Written for beginners (avoid trader slang).
  */
 const RULES: Rule[] = [
   {
     match: /\b(non[- ]?farm|nfp|payrolls?|employment change)\b/i,
     explain: {
+      simpleTitle: "Jobs report (how many people got hired)",
       whatItIs:
-        "Jobs report: how many people were hired or lost jobs in the latest month.",
+        "A monthly count of how many people found or lost jobs.",
       whyItMatters:
-        "Strong hiring can support growth but may keep interest rates higher; weak jobs can push rates lower and help risk assets.",
+        "Lots of new jobs can mean the economy is strong — but it can also keep borrowing costs high. Weak jobs can mean lower borrowing costs later, which some investors like.",
       watchFor:
-        "Hot vs forecast → USD/rates often firm. Soft vs forecast → USD softens, equities may catch a bid.",
+        "If the number is much higher than expected, the US dollar often gets stronger. If it is much lower, stock prices sometimes rise because people expect cheaper borrowing.",
     },
   },
   {
     match: /\b(unemployment|jobless claims|claimant count|continuing claims|initial jobless)\b/i,
     explain: {
+      simpleTitle: "How many people are out of work (or filing for help)",
       whatItIs:
-        "Labour-market stress gauge: share of people without work or new unemployment claims.",
+        "Shows how hard it is to find a job, or how many people just filed for unemployment help.",
       whyItMatters:
-        "Rising claims/unemployment can signal a cooling economy and easier policy later; falling claims support growth narratives.",
+        "Rising numbers can mean the economy is cooling. Falling numbers usually mean the job market still looks healthy.",
       watchFor:
-        "Higher-than-expected claims → more dovish lean. Lower claims → firmer growth/rate path.",
+        "Higher than expected can hint that interest rates may come down later. Lower than expected often supports a stronger currency.",
     },
   },
   {
     match: /\b(core\s+cpi|cpi|hicp|inflation rate|consumer price)\b/i,
     explain: {
+      simpleTitle: "Inflation — how fast everyday prices are rising",
       whatItIs:
-        "Inflation print: how fast consumer prices are rising (core strips food/energy).",
+        "Measures whether groceries, rent, and other daily costs are getting more expensive. “Core” usually ignores food and energy, which jump around a lot.",
       whyItMatters:
-        "Hot inflation keeps central banks hawkish (higher-for-longer rates). Cool inflation opens the door to cuts and softer FX.",
+        "If prices rise too fast, central banks often keep interest rates high (borrowing stays expensive). If inflation cools, rates may fall later — which can help stock prices.",
       watchFor:
-        "Above forecast → rates/USD often up, stocks mixed. Below forecast → rates ease, risk assets can rally.",
+        "Higher than expected → borrowing costs and the currency often strengthen. Lower than expected → stocks may rally and the currency can weaken.",
     },
   },
   {
     match: /\b(ppi|producer price|rmpi|input price|output price)\b/i,
     explain: {
+      simpleTitle: "Factory/wholesale prices (inflation before the store shelf)",
       whatItIs:
-        "Producer prices: inflation at the factory/wholesale level before it hits consumers.",
+        "Tracks prices companies pay (or charge) before goods reach shoppers.",
       whyItMatters:
-        "Rising PPI can feed into later CPI and rate expectations; soft PPI eases inflation worries.",
+        "Rising factory prices can show up later in consumer inflation. Soft numbers can ease worries about future price hikes.",
+      watchFor:
+        "Think of it as an early warning for the inflation report shoppers feel.",
     },
   },
   {
     match: /\b(gdp|gross domestic)\b/i,
     explain: {
-      whatItIs: "Growth scorecard: how fast the whole economy expanded or shrank.",
+      simpleTitle: "Economy scorecard — is the country growing?",
+      whatItIs:
+        "The big picture measure of whether the whole economy got bigger or smaller.",
       whyItMatters:
-        "Strong GDP supports earnings and currencies but can delay rate cuts; weak GDP raises recession / easing odds.",
+        "Strong growth is usually good for businesses and jobs, but it can also keep interest rates higher. Weak growth raises worries about a slowdown.",
     },
   },
   {
     match: /\b(fomc|fed interest rate|federal funds|rate decision|refinancing rate|mpc vote|boe interest|boj interest|ecb.*(rate|decision)|snb|bcb interest|cash rate)\b/i,
     explain: {
+      simpleTitle: "Interest-rate decision (borrowing costs for the whole economy)",
       whatItIs:
-        "Central-bank policy decision: whether rates are hiked, cut, or held.",
+        "The country’s main bank decides whether to raise, cut, or hold the key interest rate.",
       whyItMatters:
-        "This is one of the biggest drivers of FX, bonds, and equities. Hawkish holds/hikes firm the currency; cuts usually soften it and support risk assets.",
+        "This is one of the biggest money-moving events. Higher rates often strengthen the currency and can pressure stock prices. Rate cuts usually do the opposite.",
       watchFor:
-        "Watch the statement and press conference — guidance often moves markets more than the rate itself.",
+        "The speech after the decision often moves markets more than the number itself.",
     },
   },
   {
     match: /\b(fomc|monetary policy|press conference|economic projections|mpc meeting|policy statement)\b/i,
     explain: {
+      simpleTitle: "Officials explain what they might do next with rates",
       whatItIs:
-        "Policy communication: how officials explain the outlook for rates and growth.",
+        "Not always a rate change — often a statement or press Q&A about the economic outlook.",
       whyItMatters:
-        "Tone (hawkish vs dovish) reshapes rate paths, bond yields, and FX even when the policy rate is unchanged.",
+        "If officials sound worried about inflation, markets expect rates to stay high. If they sound relaxed, people may expect cuts sooner.",
     },
   },
   {
     match: /\b(retail sales|retail control)\b/i,
     explain: {
-      whatItIs: "Consumer spending pulse: how much households are buying.",
+      simpleTitle: "How much people are spending in shops",
+      whatItIs:
+        "Tracks what households are buying — a real-world pulse of consumer demand.",
       whyItMatters:
-        "Strong spending supports growth and stocks; weak spending raises slowdown fears and can help bonds.",
+        "Strong spending supports company sales. Weak spending can signal people are tightening their belts.",
     },
   },
   {
     match: /\b(pmi|ism|manufacturing|empire state|philadelphia fed|zew|ifo|business confidence|consumer (sentiment|confidence)|uom consumer)\b/i,
     explain: {
+      simpleTitle: "Mood check — surveys of businesses or shoppers",
       whatItIs:
-        "Survey of businesses or consumers about activity and outlook (not hard spending data).",
+        "A survey asking companies or consumers how things feel (busy, slow, optimistic). It is an opinion snapshot, not final sales numbers.",
       whyItMatters:
-        "Above 50 / rising prints support risk-on; sharp drops warn of cooling demand and softer rates.",
+        "Improving mood can support stock prices. A sharp drop can mean people expect weaker demand ahead.",
+      watchFor:
+        "For many of these surveys, a reading above 50 often means “expanding”; below 50 often means “shrinking.”",
     },
   },
   {
     match: /\b(housing starts|building permits|pending home|new housing|cmhc|home sales)\b/i,
     explain: {
-      whatItIs: "Housing activity: new construction, permits, or home-sale demand.",
+      simpleTitle: "Housing activity (building and buying homes)",
+      whatItIs:
+        "Tracks new home building, building permits, or home-sale demand.",
       whyItMatters:
-        "Housing is rate-sensitive. Soft data often follows higher mortgage rates; strong housing can keep growth firmer.",
+        "Homes are expensive to finance. When interest rates are high, housing often slows. Strong housing can mean the economy still has momentum.",
     },
   },
   {
     match: /\b(trade balance|exports|imports|current account|tic net)\b/i,
     explain: {
+      simpleTitle: "Trade and money flows with other countries",
       whatItIs:
-        "External accounts: trade surplus/deficit or capital flows with other countries.",
+        "Shows whether a country sells more abroad than it buys (or the opposite), and sometimes how investment money moves across borders.",
       whyItMatters:
-        "Surprises can move FX, especially for export-driven currencies (JPY, EUR, AUD, CAD).",
+        "Surprises can nudge a currency’s value — especially for countries that rely heavily on exports.",
     },
   },
   {
     match: /\b(industrial production|capacity utilization|factory)\b/i,
     explain: {
-      whatItIs: "Factory and industrial output — the goods-producing side of the economy.",
+      simpleTitle: "Factory output — how busy manufacturers are",
+      whatItIs:
+        "Measures how much factories and industry are producing.",
       whyItMatters:
-        "Strong production supports cyclicals and commodities; weak production hints at slowing demand.",
+        "Busy factories often support growth and commodity demand. Quiet factories can hint at slower times ahead.",
     },
   },
   {
     match: /\b(crude|oil stocks|eia|baker hughes|rig count)\b/i,
     explain: {
-      whatItIs: "Energy supply inventory or drilling activity.",
+      simpleTitle: "Oil supply (inventories or drilling)",
+      whatItIs:
+        "Tracks how much oil is in storage, or how many drilling rigs are active.",
       whyItMatters:
-        "Large builds can weigh on oil prices; draws support prices — feeds into inflation and energy equities.",
+        "More oil in storage can push oil prices down. Less oil in storage can push prices up — and that can affect fuel costs and inflation.",
     },
   },
   {
     match: /\b(auction|tips|bond auction|treasury)\b/i,
     explain: {
-      whatItIs: "Government debt sale: how much yield investors demand to buy bonds.",
+      simpleTitle: "Government bond sale (borrowing from investors)",
+      whatItIs:
+        "The government sells bonds to raise money. Investors say what return they want to lend.",
       whyItMatters:
-        "Weak auctions can lift yields and pressure stocks; strong demand can calm rates markets.",
+        "If demand is weak, borrowing costs can rise and stock prices can feel pressure. Strong demand usually calms markets.",
     },
   },
   {
     match: /\b(speaks?|speech|hearing|lagarde|powell|trump speaks)\b/i,
     explain: {
+      simpleTitle: "A speech or hearing (words, not a data number)",
       whatItIs:
-        "Speech or hearing from a policymaker or political figure — not a scheduled data print.",
+        "A politician or central-bank official is talking — there may be no new statistic that day.",
       whyItMatters:
-        "Words can move FX and rates if they change expectations for policy, trade, or regulation. Often volatile and short-lived.",
+        "Markets can jump if the speaker hints at new rules, trade policy, or future interest-rate moves. Moves are often quick and short-lived.",
     },
   },
   {
     match: /\b(cftc|non-commercial|positioning)\b/i,
     explain: {
+      simpleTitle: "How traders are already betting (positioning report)",
       whatItIs:
-        "Futures positioning report: how speculative traders are long or short a market.",
+        "A report showing whether big traders are mostly betting prices will go up or down.",
       whyItMatters:
-        "Extreme positioning can flag crowded trades that unwind quickly — useful context, rarely a standalone catalyst.",
+        "Useful background. If almost everyone is on one side, a surprise can cause a sharp snap-back. Rarely a headline by itself.",
     },
   },
   {
     match: /\b(wage|earnings|average weekly|labour cost|unit labour)\b/i,
     explain: {
-      whatItIs: "Pay growth: how fast wages or labour costs are rising.",
+      simpleTitle: "Pay growth — are wages rising fast?",
+      whatItIs:
+        "Tracks how quickly paychecks or labour costs are going up.",
       whyItMatters:
-        "Hot wages keep inflation sticky and rates higher; soft wages support easing bets.",
+        "Fast wage growth can keep inflation sticky, so interest rates may stay high. Soft wage growth can support the idea of rate cuts later.",
     },
   },
 ];
 
 const FALLBACK: MacroEventExplainer = {
+  simpleTitle: "Scheduled economy update",
   whatItIs:
-    "Scheduled economic release or policy event that can change growth, inflation, or rate expectations.",
+    "A planned report or policy event that can change how people see growth, prices, or interest rates.",
   whyItMatters:
-    "Markets mainly care about surprise vs the forecast: bigger surprises usually mean bigger moves in FX, bonds, and equities.",
+    "Investors mostly react when the number is surprisingly different from what was expected — not just from the title alone.",
   watchFor:
-    "Compare actual to forecast when published. High-impact labels tend to move prices fastest.",
+    "When the result comes out, compare it to what was expected. Bigger surprises usually mean bigger, faster price moves.",
 };
 
+const CURRENCY_PLAIN: Record<string, string> = {
+  USD: "United States",
+  EUR: "Euro area",
+  GBP: "United Kingdom",
+  JPY: "Japan",
+  CAD: "Canada",
+  AUD: "Australia",
+  NZD: "New Zealand",
+  CHF: "Switzerland",
+  CNY: "China",
+  IDR: "Indonesia",
+  BRL: "Brazil",
+  KRW: "South Korea",
+  HKD: "Hong Kong",
+  MYR: "Malaysia",
+  TRY: "Turkey",
+  SAR: "Saudi Arabia",
+  PHP: "Philippines",
+  RON: "Romania",
+  NOK: "Norway",
+  ILS: "Israel",
+  US: "United States",
+  EU: "Euro area",
+  GB: "United Kingdom",
+  JP: "Japan",
+  CN: "China",
+  ID: "Indonesia",
+};
+
+/** Plain country/region label for currency or country codes. */
+export function plainRegionLabel(code: string | null | undefined): string {
+  if (!code) return "";
+  const key = code.trim().toUpperCase();
+  return CURRENCY_PLAIN[key] ?? code;
+}
+
+/** Newbie-friendly impact badge text. */
+export function plainImpactLabel(impact: string): string {
+  const i = impact.toLowerCase();
+  if (i === "high") return "Usually big market moves";
+  if (i === "medium") return "Worth watching";
+  if (i === "holiday") return "Market holiday";
+  return "Smaller expected impact";
+}
+
 /**
- * Explain a calendar event title for retail readers.
- * Uses pattern matching — works offline without AI.
+ * Explain a calendar event title for beginners.
  */
 export function explainMacroEvent(
   title: string,
@@ -199,22 +273,31 @@ export function explainMacroEvent(
     const sector = extras.sector.toLowerCase();
     if (sector.includes("price") || sector.includes("inflation")) {
       return {
-        whatItIs: `Price/inflation-related release (${extras.sector}).`,
+        simpleTitle: "A price / inflation update",
+        whatItIs: `This release is about prices (${extras.sector}).`,
         whyItMatters:
-          "Inflation surprises reshape rate expectations and FX — usually more than soft activity data.",
+          "Inflation surprises often change expectations for interest rates and currency values.",
       };
     }
-    if (sector.includes("employment") || sector.includes("labour") || sector.includes("labor")) {
+    if (
+      sector.includes("employment") ||
+      sector.includes("labour") ||
+      sector.includes("labor")
+    ) {
       return {
-        whatItIs: `Labour-market release (${extras.sector}).`,
+        simpleTitle: "A jobs-market update",
+        whatItIs: `This release is about the job market (${extras.sector}).`,
         whyItMatters:
-          "Jobs data feeds the “growth vs inflation” debate and often moves the currency and rates.",
+          "Jobs data helps people guess whether the economy is heating up or cooling down — and what that means for interest rates.",
       };
     }
   }
-  const country = extras?.country ? ` (${extras.country})` : "";
+  const region = plainRegionLabel(extras?.country);
   return {
-    whatItIs: `${FALLBACK.whatItIs}${country}`,
+    simpleTitle: region
+      ? `Economy update · ${region}`
+      : FALLBACK.simpleTitle,
+    whatItIs: FALLBACK.whatItIs,
     whyItMatters: FALLBACK.whyItMatters,
     watchFor: FALLBACK.watchFor,
   };

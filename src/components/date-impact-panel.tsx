@@ -5,7 +5,6 @@ import { Lock, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AI_PASSWORD_SESSION_KEY } from "@/lib/ai/ai-password";
 import type { DateImpact } from "@/lib/ai/date-impact";
-import { formatCalendarDate } from "@/lib/macro/date-format";
 import { cn } from "@/lib/utils";
 
 const leanClass: Record<DateImpact["marketLean"], string> = {
@@ -22,7 +21,31 @@ const confidenceClass: Record<DateImpact["confidence"], string> = {
 };
 
 function leanLabel(lean: DateImpact["marketLean"]) {
-  return lean.replace(/_/g, " ");
+  switch (lean) {
+    case "risk_on":
+      return "Markets may feel braver";
+    case "risk_off":
+      return "Markets may feel cautious";
+    case "mixed":
+      return "Mixed signals";
+    case "unclear":
+      return "Too early to say";
+    default:
+      return lean;
+  }
+}
+
+function confidenceLabel(c: DateImpact["confidence"]) {
+  switch (c) {
+    case "high":
+      return "More confident read";
+    case "medium":
+      return "Moderate confidence";
+    case "low":
+      return "Low confidence";
+    default:
+      return c;
+  }
 }
 
 export function DateImpactPanel({
@@ -130,21 +153,20 @@ export function DateImpactPanel({
     void run();
   }
 
-  const displayDate = formatCalendarDate(`${isoDate}T00:00:00.000Z`);
-
   return (
     <section className="rounded-xl border border-[var(--fp-line)] bg-white/55 p-5 backdrop-blur-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-medium tracking-[0.18em] text-[var(--fp-accent)] uppercase">
-            AI date-impact analyzer
+            Optional AI day summary
           </p>
           <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--fp-ink)]">
-            {displayDate} market lean
+            What this day could mean
           </h2>
           <p className="mt-1 max-w-lg text-sm text-[var(--fp-muted)]">
-            Uses this day’s calendar events plus a light SPY / QQQ / EURUSD /
-            BTC-USD price snapshot. Password required. Not financial advice.
+            Plain-English take on today’s updates, using a light snapshot of
+            major stock, currency, and crypto prices. Password required. Not
+            financial advice.
             {eventCount === 0
               ? " No events stored — the model may stay cautious."
               : ""}
@@ -159,10 +181,10 @@ export function DateImpactPanel({
           <Lock className="size-3.5 opacity-80" />
           <Sparkles className="size-4" />
           {loading
-            ? "Synthesizing…"
+            ? "Writing…"
             : impact
-              ? "Refresh analysis"
-              : "Generate analysis"}
+              ? "Refresh summary"
+              : "Explain this day"}
         </button>
       </div>
 
@@ -209,8 +231,8 @@ export function DateImpactPanel({
 
       {!impact && !loading && !loadingCached && !error && (
         <p className="mt-6 text-sm text-[var(--fp-muted)]">
-          No analysis yet. Enter the password to generate scenarios and trend
-          pressure for this date.
+          No day summary yet. Enter the password for a beginner-friendly
+          overview of possible market moods.
         </p>
       )}
 
@@ -227,7 +249,7 @@ export function DateImpactPanel({
           <div className="flex flex-wrap items-center gap-2">
             <Badge
               className={cn(
-                "rounded-sm capitalize",
+                "rounded-sm",
                 leanClass[impact.marketLean],
               )}
             >
@@ -235,11 +257,11 @@ export function DateImpactPanel({
             </Badge>
             <Badge
               className={cn(
-                "rounded-sm capitalize",
+                "rounded-sm",
                 confidenceClass[impact.confidence],
               )}
             >
-              {impact.confidence} confidence
+              {confidenceLabel(impact.confidence)}
             </Badge>
             <Badge variant="outline" className="rounded-sm capitalize">
               {impact.model} model
@@ -249,9 +271,9 @@ export function DateImpactPanel({
             {impact.summary}
           </p>
           <div className="grid gap-5 md:grid-cols-3">
-            <ImpactList title="Scenarios" items={impact.scenarios} />
-            <ImpactList title="Trend pressure" items={impact.trends} />
-            <ImpactList title="Risks" items={impact.risks} />
+            <ImpactList title="If things go well / so-so / poorly" items={impact.scenarios} />
+            <ImpactList title="Where prices might feel pressure" items={impact.trends} />
+            <ImpactList title="Ways this read could be wrong" items={impact.risks} />
           </div>
           <p className="border-t border-[var(--fp-line)] pt-4 text-xs leading-relaxed text-[var(--fp-muted)]">
             {impact.disclaimer ||

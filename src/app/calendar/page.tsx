@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { getCachedMacroMonth } from "@/lib/cache";
-import { EventExplainerBlurb } from "@/components/event-explainer-blurb";
+import {
+  EventExplainerBlurb,
+  plainImpactLabel,
+  plainRegionLabel,
+} from "@/components/event-explainer-blurb";
 import {
   parseYearMonth,
   toIsoDateUtc,
   yearMonthLabel,
   formatCalendarDateTime,
 } from "@/lib/macro/date-format";
+import { explainMacroEvent } from "@/lib/macro/event-explainer";
 import type { DayMarkers } from "@/lib/macro/query-calendar";
 import { cn } from "@/lib/utils";
 
@@ -68,15 +73,15 @@ export default async function CalendarPage({ searchParams }: PageProps) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold tracking-[0.2em] text-[var(--fp-accent)] uppercase">
-            Economic calendar
+            Beginner-friendly calendar
           </p>
           <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl tracking-tight text-[var(--fp-ink)] md:text-5xl">
             {yearMonthLabel(year, month)}
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--fp-muted)]">
-            Markers flag high/medium releases. Each agenda row includes a
-            plain-English “what it is / why markets care” note. Click a day for
-            deeper AI briefs. Dates as DD/MM/YYYY (UTC).
+            Upcoming economy updates in plain English — what they are and why
+            prices might move. Official jargon still appears in small text so
+            you can learn the names. Dates: DD/MM/YYYY (UTC).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -149,56 +154,65 @@ export default async function CalendarPage({ searchParams }: PageProps) {
         </div>
         <div className="mt-4 flex flex-wrap gap-4 text-xs text-[var(--fp-muted)]">
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-rose-500" /> High impact
+            <span className="size-2 rounded-full bg-rose-500" /> Usually big
+            market moves
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-amber-500" /> Medium only
+            <span className="size-2 rounded-full bg-amber-500" /> Worth watching
           </span>
         </div>
       </section>
 
       <section className="mt-8 rounded-xl border border-[var(--fp-line)] bg-white/70 p-5">
         <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--fp-ink)]">
-          How to read this calendar
+          New here? Start with this
         </h2>
         <ul className="mt-3 space-y-2 text-sm leading-relaxed text-[var(--fp-muted)]">
           <li>
-            <span className="font-medium text-[var(--fp-ink)]">High</span>{" "}
-            (rose) — usually moves FX, bonds, or equities within minutes
-            (CPI, NFP, rate decisions).
-          </li>
-          <li>
-            <span className="font-medium text-[var(--fp-ink)]">Medium</span>{" "}
-            (amber) — useful context; smaller or slower price impact.
-          </li>
-          <li>
-            Markets care about{" "}
+            Think of this calendar like a{" "}
             <span className="font-medium text-[var(--fp-ink)]">
-              surprise vs forecast
+              weather forecast for money
             </span>
-            , not the headline alone. Open a day for AI briefs on individual
-            releases.
+            : some days bring bigger storms (rose dots), some just light drizzle
+            (amber).
+          </li>
+          <li>
+            The important part is usually whether the result is{" "}
+            <span className="font-medium text-[var(--fp-ink)]">
+              higher or lower than expected
+            </span>
+            {" "}
+            (the “forecast”), not the fancy title.
+          </li>
+          <li>
+            Click a day for a longer plain-English note, or use the optional AI
+            brief if you want more detail.
           </li>
         </ul>
       </section>
 
       <section className="mt-10">
         <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--fp-ink)]">
-          Agenda
+          What’s coming up
         </h2>
         <p className="mt-1 mb-4 text-sm text-[var(--fp-muted)]">
-          High/medium events this month ({events.length}) — with a short
-          explainer under each title.
+          {events.length} notable updates this month — explained in everyday
+          language.
         </p>
         {events.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--fp-line)] bg-white/40 px-6 py-12 text-center text-sm text-[var(--fp-muted)]">
-            No high/medium events stored for this month. Run ingest to refresh
-            the calendar.
+            No notable events stored for this month yet. Refresh after the next
+            data update.
           </div>
         ) : (
           <ul className="rounded-xl border border-[var(--fp-line)] bg-white/55 divide-y divide-[var(--fp-line)]">
             {events.map((ev) => {
               const day = toIsoDateUtc(new Date(ev.eventAt));
+              const explained = explainMacroEvent(ev.title, {
+                sector: ev.sector,
+                country: ev.country,
+              });
+              const region = plainRegionLabel(ev.country);
               return (
                 <li key={ev.id}>
                   <Link
@@ -208,29 +222,36 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-[var(--fp-ink)]">
-                          {ev.title}
+                          {explained.simpleTitle}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-[var(--fp-muted)]">
+                          Official name: {ev.title}
                         </p>
                         <p className="mt-1 text-xs text-[var(--fp-muted)]">
-                          {ev.country} · {formatCalendarDateTime(ev.eventAt)}
-                          {ev.forecast ? ` · fcast ${ev.forecast}` : ""}
-                          {ev.previous ? ` · prev ${ev.previous}` : ""}
+                          {region || ev.country} ·{" "}
+                          {formatCalendarDateTime(ev.eventAt)}
+                          {ev.forecast
+                            ? ` · expected ${ev.forecast}`
+                            : ""}
+                          {ev.previous ? ` · last time ${ev.previous}` : ""}
                         </p>
                         <EventExplainerBlurb
                           title={ev.title}
                           sector={ev.sector}
                           country={ev.country}
                           compact
+                          showSimpleTitle={false}
                         />
                       </div>
                       <span
                         className={cn(
-                          "shrink-0 rounded-sm px-1.5 py-0.5 text-[10px] font-medium uppercase",
+                          "max-w-[9rem] shrink-0 rounded-sm px-1.5 py-0.5 text-center text-[10px] font-medium leading-tight",
                           ev.impact === "high"
                             ? "bg-rose-100 text-rose-900"
                             : "bg-amber-100 text-amber-900",
                         )}
                       >
-                        {ev.impact}
+                        {plainImpactLabel(ev.impact)}
                       </span>
                     </div>
                   </Link>

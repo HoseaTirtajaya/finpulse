@@ -2,10 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Lock, Sparkles } from "lucide-react";
-import { EventExplainerBlurb } from "@/components/event-explainer-blurb";
+import {
+  EventExplainerBlurb,
+  plainImpactLabel,
+  plainRegionLabel,
+} from "@/components/event-explainer-blurb";
 import { AI_PASSWORD_SESSION_KEY } from "@/lib/ai/ai-password";
 import type { EventBrief } from "@/lib/ai/event-brief";
 import { formatCalendarDateTime } from "@/lib/macro/date-format";
+import { explainMacroEvent } from "@/lib/macro/event-explainer";
 import type { MacroEvent } from "@/lib/news/query-news";
 import { cn } from "@/lib/utils";
 
@@ -174,6 +179,11 @@ export function CalendarEventList({ events }: { events: MacroEvent[] }) {
         {events.map((ev) => {
           const brief = briefs[ev.id];
           const loading = loadingId === ev.id;
+          const explained = explainMacroEvent(ev.title, {
+            sector: ev.sector,
+            country: ev.country,
+          });
+          const region = plainRegionLabel(ev.country);
           return (
             <li
               key={ev.id}
@@ -182,18 +192,19 @@ export function CalendarEventList({ events }: { events: MacroEvent[] }) {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-[var(--fp-ink)]">
-                    {ev.title}
+                    {explained.simpleTitle}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-[var(--fp-muted)]">
+                    Official name: {ev.title}
                   </p>
                   <p className="mt-1 text-xs text-[var(--fp-muted)]">
-                    {ev.country} · {formatCalendarDateTime(ev.eventAt)}
-                    {ev.sector ? ` · ${ev.sector}` : ""}
-                    {ev.eventType ? ` · ${ev.eventType}` : ""}
+                    {region || ev.country} · {formatCalendarDateTime(ev.eventAt)}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-col items-end gap-2">
                   <span
                     className={cn(
-                      "rounded-sm px-1.5 py-0.5 text-[10px] font-medium uppercase",
+                      "max-w-[9rem] rounded-sm px-1.5 py-0.5 text-center text-[10px] font-medium leading-tight",
                       ev.impact === "high"
                         ? "bg-rose-100 text-rose-900"
                         : ev.impact === "medium"
@@ -201,7 +212,7 @@ export function CalendarEventList({ events }: { events: MacroEvent[] }) {
                           : "bg-slate-100 text-slate-700",
                     )}
                   >
-                    {ev.impact}
+                    {plainImpactLabel(ev.impact)}
                   </span>
                   <button
                     type="button"
@@ -214,8 +225,8 @@ export function CalendarEventList({ events }: { events: MacroEvent[] }) {
                     {loading
                       ? "…"
                       : brief
-                        ? "Refresh brief"
-                        : "AI brief"}
+                        ? "Refresh AI"
+                        : "More with AI"}
                   </button>
                 </div>
               </div>
@@ -223,19 +234,19 @@ export function CalendarEventList({ events }: { events: MacroEvent[] }) {
               <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--fp-muted)]">
                 {ev.forecast != null && (
                   <div>
-                    <dt className="inline font-semibold">Forecast </dt>
+                    <dt className="inline font-semibold">Expected </dt>
                     <dd className="inline">{ev.forecast}</dd>
                   </div>
                 )}
                 {ev.previous != null && (
                   <div>
-                    <dt className="inline font-semibold">Previous </dt>
+                    <dt className="inline font-semibold">Last time </dt>
                     <dd className="inline">{ev.previous}</dd>
                   </div>
                 )}
                 {ev.actual != null && (
                   <div>
-                    <dt className="inline font-semibold">Actual </dt>
+                    <dt className="inline font-semibold">Actual result </dt>
                     <dd className="inline">{ev.actual}</dd>
                   </div>
                 )}
@@ -255,12 +266,13 @@ export function CalendarEventList({ events }: { events: MacroEvent[] }) {
                 title={ev.title}
                 sector={ev.sector}
                 country={ev.country}
+                showSimpleTitle={false}
               />
 
               {brief && (
                 <div className="mt-3 space-y-2 border-t border-[var(--fp-line)] pt-3">
                   <p className="text-[10px] font-semibold tracking-wider text-[var(--fp-accent)] uppercase">
-                    AI deep dive
+                    Extra AI explanation
                   </p>
                   <p className="text-sm leading-relaxed text-[var(--fp-ink)]/90">
                     {brief.summary}
@@ -268,7 +280,7 @@ export function CalendarEventList({ events }: { events: MacroEvent[] }) {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <BriefBullets title="Key points" items={brief.keyPoints} />
                     <BriefBullets
-                      title="Possible market notes"
+                      title="What could move"
                       items={brief.marketNotes}
                     />
                   </div>

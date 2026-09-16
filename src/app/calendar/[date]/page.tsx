@@ -61,19 +61,19 @@ export default async function CalendarDayPage({ params }: PageProps) {
 
       <section className="mt-6">
         <p className="text-xs font-semibold tracking-[0.2em] text-[var(--fp-accent)] uppercase">
-          Calendar day
+          One day, explained simply
         </p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl tracking-tight text-[var(--fp-ink)] md:text-5xl">
           {formatCalendarDate(`${isoDate}T00:00:00.000Z`)}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[var(--fp-muted)]">
-          {events.length} event{events.length === 1 ? "" : "s"} stored for this
-          UTC day
+          {events.length} update{events.length === 1 ? "" : "s"} this day
+          (UTC)
           {highMed.length > 0
-            ? ` · ${highMed.length} high/medium`
+            ? ` · ${highMed.length} that usually matter more`
             : ""}
-          . Use AI brief on an event for key points, or the day analyzer below
-          for overall market lean. Not financial advice.
+          . Read the plain-English cards below, or use optional AI for more
+          detail. Not financial advice.
         </p>
       </section>
 
@@ -82,9 +82,9 @@ export default async function CalendarDayPage({ params }: PageProps) {
           Events
         </h2>
         <p className="mt-1 text-sm text-[var(--fp-muted)]">
-          Password-gated AI briefs explain what the release typically means —
-          no scraped commentary; built from calendar fields (plus official
-          source link when available).
+          Each card starts with a plain-English title. The official jargon name
+          is shown underneath so you can learn it over time. Optional AI adds
+          more detail (password required).
         </p>
         <CalendarEventList events={events} />
       </section>

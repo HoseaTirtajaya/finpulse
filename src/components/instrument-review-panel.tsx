@@ -172,7 +172,7 @@ export function InstrumentReviewPanel({
                 <span className="text-[var(--fp-muted)]">
                   {ev.country} · {format(new Date(ev.eventAt), "MMM d")} ·{" "}
                   {ev.impact}
-                  {ev.forecast ? ` · fcast ${ev.forecast}` : ""}
+                  {ev.forecast ? ` · expected ${ev.forecast}` : ""}
                 </span>
               </li>
             ))}
