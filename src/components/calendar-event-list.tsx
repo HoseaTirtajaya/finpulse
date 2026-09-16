@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Lock, Sparkles } from "lucide-react";
+import { EventExplainerBlurb } from "@/components/event-explainer-blurb";
 import { AI_PASSWORD_SESSION_KEY } from "@/lib/ai/ai-password";
 import type { EventBrief } from "@/lib/ai/event-brief";
 import { formatCalendarDateTime } from "@/lib/macro/date-format";
@@ -250,8 +251,17 @@ export function CalendarEventList({ events }: { events: MacroEvent[] }) {
                 )}
               </dl>
 
+              <EventExplainerBlurb
+                title={ev.title}
+                sector={ev.sector}
+                country={ev.country}
+              />
+
               {brief && (
                 <div className="mt-3 space-y-2 border-t border-[var(--fp-line)] pt-3">
+                  <p className="text-[10px] font-semibold tracking-wider text-[var(--fp-accent)] uppercase">
+                    AI deep dive
+                  </p>
                   <p className="text-sm leading-relaxed text-[var(--fp-ink)]/90">
                     {brief.summary}
                   </p>
